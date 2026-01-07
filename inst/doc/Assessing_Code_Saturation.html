@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>3. Assessing Code Saturation</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">3. Assessing Code Saturation</h1>
+
+
+
+<p>Assessing saturation often comes down to two practical questions:
+<strong>Which codes show up often enough?</strong> and <strong>Do they
+stretch across a wide enough slice of transcripts or media
+objects?</strong> The <code>set_saturation()</code> and
+<code>compare_saturation()</code> helpers turn those questions into
+repeatable filters and visuals. This vignette builds on the same mock
+excerpts used in the earlier articles so you can knit everything in
+order or cherry-pick what you need.</p>
+<p>If you knitted the <em>Cleaning, Merging, and Exploring Qualitative
+Data</em> or <em>Summarizing Codes</em> vignettes just before this one,
+you already have <code>recoded$data_recode</code> and
+<code>recoded$codebook_recode</code> in your environment. The chunk
+below recreates them so this article is self-contained—feel free to skip
+it when reusing objects from the prior tutorial.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># Cleaning, recoding and creating code summaries</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(DedooseR)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">library</span>(tibble)</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>code_order <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>  <span class="st">&quot;Motor Skills&quot;</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="st">&quot;Social Skills&quot;</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  <span class="st">&quot;Self-expression&quot;</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>  <span class="st">&quot;Emotional Regulation&quot;</span>,</span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  <span class="st">&quot;Emotion Identification&quot;</span>,</span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="st">&quot;Inhibitory Control&quot;</span>,</span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  <span class="st">&quot;Internalizing Behavior&quot;</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>  <span class="st">&quot;Externalizing Behavior&quot;</span>,</span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>  <span class="st">&quot;Academic Skills&quot;</span>,</span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>  <span class="st">&quot;Self-esteem&quot;</span>,</span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a>  <span class="st">&quot;Growth Mindset&quot;</span></span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a>)</span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a>code_weights <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a>  <span class="st">&quot;Motor Skills&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a>  <span class="st">&quot;Social Skills&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a>  <span class="st">&quot;Self-expression&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a>  <span class="st">&quot;Emotional Regulation&quot;</span> <span class="ot">=</span> <span class="dv">2</span>,</span>
+<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a>  <span class="st">&quot;Emotion Identification&quot;</span> <span class="ot">=</span> <span class="dv">2</span>,</span>
+<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a>  <span class="st">&quot;Inhibitory Control&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a>  <span class="st">&quot;Internalizing Behavior&quot;</span> <span class="ot">=</span> <span class="dv">2</span>,</span>
+<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a>  <span class="st">&quot;Externalizing Behavior&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-27"><a href="#cb1-27" tabindex="-1"></a>  <span class="st">&quot;Academic Skills&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-28"><a href="#cb1-28" tabindex="-1"></a>  <span class="st">&quot;Self-esteem&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-29"><a href="#cb1-29" tabindex="-1"></a>  <span class="st">&quot;Growth Mindset&quot;</span> <span class="ot">=</span> <span class="dv">1</span></span>
+<span id="cb1-30"><a href="#cb1-30" tabindex="-1"></a>)</span>
+<span id="cb1-31"><a href="#cb1-31" tabindex="-1"></a>code_assignments <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb1-32"><a href="#cb1-32" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Motor Skills&quot;</span>, <span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-33"><a href="#cb1-33" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-34"><a href="#cb1-34" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-35"><a href="#cb1-35" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-36"><a href="#cb1-36" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-37"><a href="#cb1-37" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Motor Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-38"><a href="#cb1-38" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-39"><a href="#cb1-39" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Motor Skills&quot;</span>, <span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-40"><a href="#cb1-40" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-41"><a href="#cb1-41" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-42"><a href="#cb1-42" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-43"><a href="#cb1-43" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-44"><a href="#cb1-44" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Motor Skills&quot;</span>, <span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-45"><a href="#cb1-45" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-46"><a href="#cb1-46" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-47"><a href="#cb1-47" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Motor Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-48"><a href="#cb1-48" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-49"><a href="#cb1-49" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-50"><a href="#cb1-50" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-51"><a href="#cb1-51" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>)</span>
+<span id="cb1-52"><a href="#cb1-52" tabindex="-1"></a>)</span>
+<span id="cb1-53"><a href="#cb1-53" tabindex="-1"></a>demo_excerpts <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb1-54"><a href="#cb1-54" tabindex="-1"></a>  <span class="st">`</span><span class="at">Media Title</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-55"><a href="#cb1-55" tabindex="-1"></a>    <span class="st">&quot;Interview: Opening Circle&quot;</span>,</span>
+<span id="cb1-56"><a href="#cb1-56" tabindex="-1"></a>    <span class="st">&quot;Focus Group: Rhythm Relay&quot;</span>,</span>
+<span id="cb1-57"><a href="#cb1-57" tabindex="-1"></a>    <span class="st">&quot;Interview: Alumni Showcase&quot;</span>,</span>
+<span id="cb1-58"><a href="#cb1-58" tabindex="-1"></a>    <span class="st">&quot;Classroom Observation: Lyric Lab&quot;</span>,</span>
+<span id="cb1-59"><a href="#cb1-59" tabindex="-1"></a>    <span class="st">&quot;Journal Club: Campfire Reflections&quot;</span>,</span>
+<span id="cb1-60"><a href="#cb1-60" tabindex="-1"></a>    <span class="st">&quot;Parent Interview: Practice Night&quot;</span>,</span>
+<span id="cb1-61"><a href="#cb1-61" tabindex="-1"></a>    <span class="st">&quot;Coach Debrief: Studio Session&quot;</span>,</span>
+<span id="cb1-62"><a href="#cb1-62" tabindex="-1"></a>    <span class="st">&quot;Interview: Teen Beat Makers&quot;</span>,</span>
+<span id="cb1-63"><a href="#cb1-63" tabindex="-1"></a>    <span class="st">&quot;Workshop: Beat Mapping&quot;</span>,</span>
+<span id="cb1-64"><a href="#cb1-64" tabindex="-1"></a>    <span class="st">&quot;Focus Group: Mentor Circle&quot;</span>,</span>
+<span id="cb1-65"><a href="#cb1-65" tabindex="-1"></a>    <span class="st">&quot;Observation: Homework Jam&quot;</span>,</span>
+<span id="cb1-66"><a href="#cb1-66" tabindex="-1"></a>    <span class="st">&quot;Interview: Closing Showcase&quot;</span>,</span>
+<span id="cb1-67"><a href="#cb1-67" tabindex="-1"></a>    <span class="st">&quot;Survey Comment: Quiet Camper&quot;</span>,</span>
+<span id="cb1-68"><a href="#cb1-68" tabindex="-1"></a>    <span class="st">&quot;Survey Comment: Confident Soloist&quot;</span>,</span>
+<span id="cb1-69"><a href="#cb1-69" tabindex="-1"></a>    <span class="st">&quot;Interview: Leadership Huddle&quot;</span>,</span>
+<span id="cb1-70"><a href="#cb1-70" tabindex="-1"></a>    <span class="st">&quot;Observation: Peer Pairing&quot;</span>,</span>
+<span id="cb1-71"><a href="#cb1-71" tabindex="-1"></a>    <span class="st">&quot;Focus Group: Reflection Rounds&quot;</span>,</span>
+<span id="cb1-72"><a href="#cb1-72" tabindex="-1"></a>    <span class="st">&quot;Interview: New Camper&quot;</span>,</span>
+<span id="cb1-73"><a href="#cb1-73" tabindex="-1"></a>    <span class="st">&quot;Observation: Goal Setting&quot;</span>,</span>
+<span id="cb1-74"><a href="#cb1-74" tabindex="-1"></a>    <span class="st">&quot;Workshop: Improvisation Lab&quot;</span></span>
+<span id="cb1-75"><a href="#cb1-75" tabindex="-1"></a>  ),</span>
+<span id="cb1-76"><a href="#cb1-76" tabindex="-1"></a>  <span class="st">`</span><span class="at">Excerpt Range</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-77"><a href="#cb1-77" tabindex="-1"></a>    <span class="st">&quot;Excerpt 12-56&quot;</span>,</span>
+<span id="cb1-78"><a href="#cb1-78" tabindex="-1"></a>    <span class="st">&quot;Excerpt 04-38&quot;</span>,</span>
+<span id="cb1-79"><a href="#cb1-79" tabindex="-1"></a>    <span class="st">&quot;Excerpt 77-112&quot;</span>,</span>
+<span id="cb1-80"><a href="#cb1-80" tabindex="-1"></a>    <span class="st">&quot;Excerpt 15-42&quot;</span>,</span>
+<span id="cb1-81"><a href="#cb1-81" tabindex="-1"></a>    <span class="st">&quot;Excerpt 33-80&quot;</span>,</span>
+<span id="cb1-82"><a href="#cb1-82" tabindex="-1"></a>    <span class="st">&quot;Excerpt 08-29&quot;</span>,</span>
+<span id="cb1-83"><a href="#cb1-83" tabindex="-1"></a>    <span class="st">&quot;Excerpt 21-48&quot;</span>,</span>
+<span id="cb1-84"><a href="#cb1-84" tabindex="-1"></a>    <span class="st">&quot;Excerpt 44-78&quot;</span>,</span>
+<span id="cb1-85"><a href="#cb1-85" tabindex="-1"></a>    <span class="st">&quot;Excerpt 63-97&quot;</span>,</span>
+<span id="cb1-86"><a href="#cb1-86" tabindex="-1"></a>    <span class="st">&quot;Excerpt 10-35&quot;</span>,</span>
+<span id="cb1-87"><a href="#cb1-87" tabindex="-1"></a>    <span class="st">&quot;Excerpt 52-85&quot;</span>,</span>
+<span id="cb1-88"><a href="#cb1-88" tabindex="-1"></a>    <span class="st">&quot;Excerpt 18-41&quot;</span>,</span>
+<span id="cb1-89"><a href="#cb1-89" tabindex="-1"></a>    <span class="st">&quot;Excerpt 71-103&quot;</span>,</span>
+<span id="cb1-90"><a href="#cb1-90" tabindex="-1"></a>    <span class="st">&quot;Excerpt 26-50&quot;</span>,</span>
+<span id="cb1-91"><a href="#cb1-91" tabindex="-1"></a>    <span class="st">&quot;Excerpt 39-72&quot;</span>,</span>
+<span id="cb1-92"><a href="#cb1-92" tabindex="-1"></a>    <span class="st">&quot;Excerpt 14-36&quot;</span>,</span>
+<span id="cb1-93"><a href="#cb1-93" tabindex="-1"></a>    <span class="st">&quot;Excerpt 58-90&quot;</span>,</span>
+<span id="cb1-94"><a href="#cb1-94" tabindex="-1"></a>    <span class="st">&quot;Excerpt 23-47&quot;</span>,</span>
+<span id="cb1-95"><a href="#cb1-95" tabindex="-1"></a>    <span class="st">&quot;Excerpt 66-101&quot;</span>,</span>
+<span id="cb1-96"><a href="#cb1-96" tabindex="-1"></a>    <span class="st">&quot;Excerpt 30-63&quot;</span></span>
+<span id="cb1-97"><a href="#cb1-97" tabindex="-1"></a>  ),</span>
+<span id="cb1-98"><a href="#cb1-98" tabindex="-1"></a>  <span class="st">`</span><span class="at">Excerpt Creator</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-99"><a href="#cb1-99" tabindex="-1"></a>    <span class="st">&quot;Aliyah&quot;</span>,</span>
+<span id="cb1-100"><a href="#cb1-100" tabindex="-1"></a>    <span class="st">&quot;Rohan&quot;</span>,</span>
+<span id="cb1-101"><a href="#cb1-101" tabindex="-1"></a>    <span class="st">&quot;Aliyah&quot;</span>,</span>
+<span id="cb1-102"><a href="#cb1-102" tabindex="-1"></a>    <span class="st">&quot;Lina&quot;</span>,</span>
+<span id="cb1-103"><a href="#cb1-103" tabindex="-1"></a>    <span class="st">&quot;Mateo&quot;</span>,</span>
+<span id="cb1-104"><a href="#cb1-104" tabindex="-1"></a>    <span class="st">&quot;Priya&quot;</span>,</span>
+<span id="cb1-105"><a href="#cb1-105" tabindex="-1"></a>    <span class="st">&quot;Lina&quot;</span>,</span>
+<span id="cb1-106"><a href="#cb1-106" tabindex="-1"></a>    <span class="st">&quot;Rohan&quot;</span>,</span>
+<span id="cb1-107"><a href="#cb1-107" tabindex="-1"></a>    <span class="st">&quot;Aliyah&quot;</span>,</span>
+<span id="cb1-108"><a href="#cb1-108" tabindex="-1"></a>    <span class="st">&quot;Mateo&quot;</span>,</span>
+<span id="cb1-109"><a href="#cb1-109" tabindex="-1"></a>    <span class="st">&quot;Priya&quot;</span>,</span>
+<span id="cb1-110"><a href="#cb1-110" tabindex="-1"></a>    <span class="st">&quot;Jordan&quot;</span>,</span>
+<span id="cb1-111"><a href="#cb1-111" tabindex="-1"></a>    <span class="st">&quot;Aliyah&quot;</span>,</span>
+<span id="cb1-112"><a href="#cb1-112" tabindex="-1"></a>    <span class="st">&quot;Rohan&quot;</span>,</span>
+<span id="cb1-113"><a href="#cb1-113" tabindex="-1"></a>    <span class="st">&quot;Jordan&quot;</span>,</span>
+<span id="cb1-114"><a href="#cb1-114" tabindex="-1"></a>    <span class="st">&quot;Priya&quot;</span>,</span>
+<span id="cb1-115"><a href="#cb1-115" tabindex="-1"></a>    <span class="st">&quot;Lina&quot;</span>,</span>
+<span id="cb1-116"><a href="#cb1-116" tabindex="-1"></a>    <span class="st">&quot;Mateo&quot;</span>,</span>
+<span id="cb1-117"><a href="#cb1-117" tabindex="-1"></a>    <span class="st">&quot;Jordan&quot;</span>,</span>
+<span id="cb1-118"><a href="#cb1-118" tabindex="-1"></a>    <span class="st">&quot;Priya&quot;</span></span>
+<span id="cb1-119"><a href="#cb1-119" tabindex="-1"></a>  ),</span>
+<span id="cb1-120"><a href="#cb1-120" tabindex="-1"></a>  <span class="st">`</span><span class="at">Excerpt Date</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">as.Date</span>(<span class="fu">c</span>(</span>
+<span id="cb1-121"><a href="#cb1-121" tabindex="-1"></a>    <span class="st">&quot;2023-06-10&quot;</span>,</span>
+<span id="cb1-122"><a href="#cb1-122" tabindex="-1"></a>    <span class="st">&quot;2023-07-18&quot;</span>,</span>
+<span id="cb1-123"><a href="#cb1-123" tabindex="-1"></a>    <span class="st">&quot;2024-01-08&quot;</span>,</span>
+<span id="cb1-124"><a href="#cb1-124" tabindex="-1"></a>    <span class="st">&quot;2023-07-24&quot;</span>,</span>
+<span id="cb1-125"><a href="#cb1-125" tabindex="-1"></a>    <span class="st">&quot;2023-08-05&quot;</span>,</span>
+<span id="cb1-126"><a href="#cb1-126" tabindex="-1"></a>    <span class="st">&quot;2023-08-12&quot;</span>,</span>
+<span id="cb1-127"><a href="#cb1-127" tabindex="-1"></a>    <span class="st">&quot;2023-08-19&quot;</span>,</span>
+<span id="cb1-128"><a href="#cb1-128" tabindex="-1"></a>    <span class="st">&quot;2023-08-26&quot;</span>,</span>
+<span id="cb1-129"><a href="#cb1-129" tabindex="-1"></a>    <span class="st">&quot;2023-09-02&quot;</span>,</span>
+<span id="cb1-130"><a href="#cb1-130" tabindex="-1"></a>    <span class="st">&quot;2023-09-09&quot;</span>,</span>
+<span id="cb1-131"><a href="#cb1-131" tabindex="-1"></a>    <span class="st">&quot;2023-09-16&quot;</span>,</span>
+<span id="cb1-132"><a href="#cb1-132" tabindex="-1"></a>    <span class="st">&quot;2023-09-23&quot;</span>,</span>
+<span id="cb1-133"><a href="#cb1-133" tabindex="-1"></a>    <span class="st">&quot;2023-09-30&quot;</span>,</span>
+<span id="cb1-134"><a href="#cb1-134" tabindex="-1"></a>    <span class="st">&quot;2023-10-07&quot;</span>,</span>
+<span id="cb1-135"><a href="#cb1-135" tabindex="-1"></a>    <span class="st">&quot;2023-10-14&quot;</span>,</span>
+<span id="cb1-136"><a href="#cb1-136" tabindex="-1"></a>    <span class="st">&quot;2023-10-21&quot;</span>,</span>
+<span id="cb1-137"><a href="#cb1-137" tabindex="-1"></a>    <span class="st">&quot;2023-10-28&quot;</span>,</span>
+<span id="cb1-138"><a href="#cb1-138" tabindex="-1"></a>    <span class="st">&quot;2023-11-04&quot;</span>,</span>
+<span id="cb1-139"><a href="#cb1-139" tabindex="-1"></a>    <span class="st">&quot;2023-11-11&quot;</span>,</span>
+<span id="cb1-140"><a href="#cb1-140" tabindex="-1"></a>    <span class="st">&quot;2023-11-18&quot;</span></span>
+<span id="cb1-141"><a href="#cb1-141" tabindex="-1"></a>  )),</span>
+<span id="cb1-142"><a href="#cb1-142" tabindex="-1"></a>  <span class="st">`</span><span class="at">Excerpt Copy</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-143"><a href="#cb1-143" tabindex="-1"></a>    <span class="st">&quot;Keeping the djembe rhythm steady made my hands stronger, and pairing up for call-and-response helped the nervous kids giggle and join in. We counted the measures together like a quick math warmup, and they kept testing new patterns until they could hear their confidence rise.&quot;</span>,</span>
+<span id="cb1-144"><a href="#cb1-144" tabindex="-1"></a>    <span class="st">&quot;During the rhythm relay, we practiced breathing between verses so the kids could wait for their cue instead of jumping in early. Mapping the rhymes to eight-count phrases let them chart syllables like a fractions lesson, and when one camper shouted over the group we paused to name the frustration, reset, and talk about how mistakes fuel the next take.&quot;</span>,</span>
+<span id="cb1-145"><a href="#cb1-145" tabindex="-1"></a>    <span class="st">&quot;When I get mad now, I write a hook about it first. It helps me spot the feeling, note the anxious thoughts that used to stay bottled up, and decide whether I want to shout it or sing it soft. Drafting verses in my notebook also keeps my reading teacher happy because I&#39;m practicing structure while I hype myself up.&quot;</span>,</span>
+<span id="cb1-146"><a href="#cb1-146" tabindex="-1"></a>    <span class="st">&quot;In lyric lab the trio revised their chorus, taking turns so nobody rushed the mic while they jotted rhyme schemes on the whiteboard. Naming which lines sounded brave versus nervous let them cheer each other on, and the rewrites doubled as a grammar check that made them proud to keep refining.&quot;</span>,</span>
+<span id="cb1-147"><a href="#cb1-147" tabindex="-1"></a>    <span class="st">&quot;During the campfire reflection, one camper admitted that she sometimes shuts down when we practice sad songs. Now, we check in during practice to spot evidence for those feelings and share coping plans when needed&quot;</span>,</span>
+<span id="cb1-148"><a href="#cb1-148" tabindex="-1"></a>    <span class="st">&quot;On practice night we tapped the rim pattern slowly so the shy drummer could breathe through the butterflies and wait for the downbeat before attacking the snare. They tracked tempos in a spreadsheet for homework, proving to themselves that patient repetitions improve control even when anxiety creeps in mid-song.&quot;</span>,</span>
+<span id="cb1-149"><a href="#cb1-149" tabindex="-1"></a>    <span class="st">&quot;During the studio session debrief, the counselors noted how Tasha&#39;s freestyles shifted from loud interruptions to collaborative echoes once we rehearsed conversation stems. She marked the beats she wanted to emphasize on her lyric worksheet, and bragged that the script gave her confidence without shutting down her big energy.&quot;</span>,</span>
+<span id="cb1-150"><a href="#cb1-150" tabindex="-1"></a>    <span class="st">&quot;The teen beat makers synced their keyboard riffs with the drum pad, counting rests together so each person held back until the loop called for them. Charting the chord inversions on staff paper turned into a mini theory lesson, and the crew loved seeing how breathing through the tricky hand switch built real confidence.&quot;</span>,</span>
+<span id="cb1-151"><a href="#cb1-151" tabindex="-1"></a>    <span class="st">&quot;Aliyah&#39;s notebook shows mood colors beside every verse, and she journals how the sadness feels in her chest before choosing whether to rap or sing the line. She keeps a checklist of revision strategies from literacy class, reminding herself to pause, name the feeling, and try another take until the lyric matches her intention.&quot;</span>,</span>
+<span id="cb1-152"><a href="#cb1-152" tabindex="-1"></a>    <span class="st">&quot;In mentor circle today the group mapped conflict scripts, role-playing the kid who shuts down and the kid who pops off. They located sentence starters from our reading packet to practice calm responses, and sharing wins boosted the quieter campers&#39; confidence.&quot;</span>,</span>
+<span id="cb1-153"><a href="#cb1-153" tabindex="-1"></a>    <span class="st">&quot;During homework jam we slowed spoken word drafts, pausing at commas to note the emotions driving each line. Writing margin notes about the worry behind certain phrases helped them see how breathing before the final stanza keeps the story clear while they revise.&quot;</span>,</span>
+<span id="cb1-154"><a href="#cb1-154" tabindex="-1"></a>    <span class="st">&quot;At the closing showcase interview, Jordan described how the ensemble now checks in with thumbs before feedback so anxious singers feel seen. They referenced the critique rubric like a reading comprehension guide, and noticing their own growth made them stand taller on stage.&quot;</span>,</span>
+<span id="cb1-155"><a href="#cb1-155" tabindex="-1"></a>    <span class="st">&quot;While recording harmonies Aliyah plotted fingerings on a tablature grid and waited for the metronome click before sliding into the chorus. Tracking the takes in her practice journal showed how deliberate pacing builds confidence and keeps her chasing new techniques.&quot;</span>,</span>
+<span id="cb1-156"><a href="#cb1-156" tabindex="-1"></a>    <span class="st">&quot;Rohan noted that the lunchtime cypher got loud when Jace joked through the tension, so we paused to label the frustration and mark triggers on the behavior chart. Translating that moment into a reflective paragraph later helped Jace feel proud of naming the shift before it exploded again.&quot;</span>,</span>
+<span id="cb1-157"><a href="#cb1-157" tabindex="-1"></a>    <span class="st">&quot;In leadership huddle the mentors graphed how their small-group questions improved week to week, even when nerves made them rush. Studying discussion transcripts for evidence of follow-up prompts showed them that practicing new openings pays off.&quot;</span>,</span>
+<span id="cb1-158"><a href="#cb1-158" tabindex="-1"></a>    <span class="st">&quot;During peer pairing, Malik clenched up before solos, so we rehearsed counting four silent beats before striking the bell tree. Logging each attempt on a progress chart proved to him that steady breathing and restraint can tame the worry he carries in.&quot;</span>,</span>
+<span id="cb1-159"><a href="#cb1-159" tabindex="-1"></a>    <span class="st">&quot;Reflection rounds had artists reread their zine entries, underline words tied to fear or hope, and then rewrite one stanza to show the shift. Sharing those drafts aloud left them buzzing about how revising with evidence from the text made their voices feel stronger.&quot;</span>,</span>
+<span id="cb1-160"><a href="#cb1-160" tabindex="-1"></a>    <span class="st">&quot;The new camper interview highlighted how staff coached a quick-to-shout drummer to tap the rim twice before speaking, giving peers room to weigh in. Charting discussion norms on the whiteboard doubled as a literacy task and she beamed about channeling her volume into support.&quot;</span>,</span>
+<span id="cb1-161"><a href="#cb1-161" tabindex="-1"></a>    <span class="st">&quot;Goal setting sessions have teens draft personal learning targets, then annotate lyrics to show where they pushed past stage fright. Keeping that evidence log convinces them their writing muscles grow with each revision.&quot;</span>,</span>
+<span id="cb1-162"><a href="#cb1-162" tabindex="-1"></a>    <span class="st">&quot;In improvisation lab the facilitator had everyone breathe twice, name the dominant feeling, and raise a hand before adding to the groove. They cited vocabulary from literacy night to explain their choices, and each success at pausing built their belief that they can stretch the next idea even further.&quot;</span></span>
+<span id="cb1-163"><a href="#cb1-163" tabindex="-1"></a>  ),</span>
+<span id="cb1-164"><a href="#cb1-164" tabindex="-1"></a>  <span class="st">`</span><span class="at">Resource Creator</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-165"><a href="#cb1-165" tabindex="-1"></a>    <span class="st">&quot;Camp Director&quot;</span>,</span>
+<span id="cb1-166"><a href="#cb1-166" tabindex="-1"></a>    <span class="st">&quot;Evaluation Lead&quot;</span>,</span>
+<span id="cb1-167"><a href="#cb1-167" tabindex="-1"></a>    <span class="st">&quot;Alumni Coordinator&quot;</span>,</span>
+<span id="cb1-168"><a href="#cb1-168" tabindex="-1"></a>    <span class="st">&quot;Program Researcher&quot;</span>,</span>
+<span id="cb1-169"><a href="#cb1-169" tabindex="-1"></a>    <span class="st">&quot;School Liaison&quot;</span>,</span>
+<span id="cb1-170"><a href="#cb1-170" tabindex="-1"></a>    <span class="st">&quot;Behavior Specialist&quot;</span>,</span>
+<span id="cb1-171"><a href="#cb1-171" tabindex="-1"></a>    <span class="st">&quot;Camp Director&quot;</span>,</span>
+<span id="cb1-172"><a href="#cb1-172" tabindex="-1"></a>    <span class="st">&quot;Program Researcher&quot;</span>,</span>
+<span id="cb1-173"><a href="#cb1-173" tabindex="-1"></a>    <span class="st">&quot;Counselor Team Lead&quot;</span>,</span>
+<span id="cb1-174"><a href="#cb1-174" tabindex="-1"></a>    <span class="st">&quot;Behavior Specialist&quot;</span>,</span>
+<span id="cb1-175"><a href="#cb1-175" tabindex="-1"></a>    <span class="st">&quot;Evaluation Lead&quot;</span>,</span>
+<span id="cb1-176"><a href="#cb1-176" tabindex="-1"></a>    <span class="st">&quot;School Liaison&quot;</span>,</span>
+<span id="cb1-177"><a href="#cb1-177" tabindex="-1"></a>    <span class="st">&quot;Camp Director&quot;</span>,</span>
+<span id="cb1-178"><a href="#cb1-178" tabindex="-1"></a>    <span class="st">&quot;Behavior Specialist&quot;</span>,</span>
+<span id="cb1-179"><a href="#cb1-179" tabindex="-1"></a>    <span class="st">&quot;Program Researcher&quot;</span>,</span>
+<span id="cb1-180"><a href="#cb1-180" tabindex="-1"></a>    <span class="st">&quot;Counselor Team Lead&quot;</span>,</span>
+<span id="cb1-181"><a href="#cb1-181" tabindex="-1"></a>    <span class="st">&quot;Evaluation Lead&quot;</span>,</span>
+<span id="cb1-182"><a href="#cb1-182" tabindex="-1"></a>    <span class="st">&quot;Camp Director&quot;</span>,</span>
+<span id="cb1-183"><a href="#cb1-183" tabindex="-1"></a>    <span class="st">&quot;Program Researcher&quot;</span>,</span>
+<span id="cb1-184"><a href="#cb1-184" tabindex="-1"></a>    <span class="st">&quot;Counselor Team Lead&quot;</span></span>
+<span id="cb1-185"><a href="#cb1-185" tabindex="-1"></a>  ),</span>
+<span id="cb1-186"><a href="#cb1-186" tabindex="-1"></a>  <span class="st">`</span><span class="at">Resource Date</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">as.Date</span>(<span class="fu">c</span>(</span>
+<span id="cb1-187"><a href="#cb1-187" tabindex="-1"></a>    <span class="st">&quot;2023-06-01&quot;</span>,</span>
+<span id="cb1-188"><a href="#cb1-188" tabindex="-1"></a>    <span class="st">&quot;2023-07-12&quot;</span>,</span>
+<span id="cb1-189"><a href="#cb1-189" tabindex="-1"></a>    <span class="st">&quot;2023-12-20&quot;</span>,</span>
+<span id="cb1-190"><a href="#cb1-190" tabindex="-1"></a>    <span class="st">&quot;2023-07-20&quot;</span>,</span>
+<span id="cb1-191"><a href="#cb1-191" tabindex="-1"></a>    <span class="st">&quot;2023-08-02&quot;</span>,</span>
+<span id="cb1-192"><a href="#cb1-192" tabindex="-1"></a>    <span class="st">&quot;2023-08-09&quot;</span>,</span>
+<span id="cb1-193"><a href="#cb1-193" tabindex="-1"></a>    <span class="st">&quot;2023-08-16&quot;</span>,</span>
+<span id="cb1-194"><a href="#cb1-194" tabindex="-1"></a>    <span class="st">&quot;2023-08-23&quot;</span>,</span>
+<span id="cb1-195"><a href="#cb1-195" tabindex="-1"></a>    <span class="st">&quot;2023-08-30&quot;</span>,</span>
+<span id="cb1-196"><a href="#cb1-196" tabindex="-1"></a>    <span class="st">&quot;2023-09-06&quot;</span>,</span>
+<span id="cb1-197"><a href="#cb1-197" tabindex="-1"></a>    <span class="st">&quot;2023-09-13&quot;</span>,</span>
+<span id="cb1-198"><a href="#cb1-198" tabindex="-1"></a>    <span class="st">&quot;2023-09-20&quot;</span>,</span>
+<span id="cb1-199"><a href="#cb1-199" tabindex="-1"></a>    <span class="st">&quot;2023-09-27&quot;</span>,</span>
+<span id="cb1-200"><a href="#cb1-200" tabindex="-1"></a>    <span class="st">&quot;2023-10-04&quot;</span>,</span>
+<span id="cb1-201"><a href="#cb1-201" tabindex="-1"></a>    <span class="st">&quot;2023-10-11&quot;</span>,</span>
+<span id="cb1-202"><a href="#cb1-202" tabindex="-1"></a>    <span class="st">&quot;2023-10-18&quot;</span>,</span>
+<span id="cb1-203"><a href="#cb1-203" tabindex="-1"></a>    <span class="st">&quot;2023-10-25&quot;</span>,</span>
+<span id="cb1-204"><a href="#cb1-204" tabindex="-1"></a>    <span class="st">&quot;2023-11-01&quot;</span>,</span>
+<span id="cb1-205"><a href="#cb1-205" tabindex="-1"></a>    <span class="st">&quot;2023-11-08&quot;</span>,</span>
+<span id="cb1-206"><a href="#cb1-206" tabindex="-1"></a>    <span class="st">&quot;2023-11-15&quot;</span></span>
+<span id="cb1-207"><a href="#cb1-207" tabindex="-1"></a>  ))</span>
+<span id="cb1-208"><a href="#cb1-208" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb1-209"><a href="#cb1-209" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
+<span id="cb1-210"><a href="#cb1-210" tabindex="-1"></a>    <span class="at">range_stub =</span> <span class="fu">sub</span>(<span class="st">&quot;Excerpt &quot;</span>, <span class="st">&quot;&quot;</span>, <span class="st">`</span><span class="at">Excerpt Range</span><span class="st">`</span>),</span>
+<span id="cb1-211"><a href="#cb1-211" tabindex="-1"></a>    <span class="at">code_details =</span> purrr<span class="sc">::</span><span class="fu">map2</span>(</span>
+<span id="cb1-212"><a href="#cb1-212" tabindex="-1"></a>      code_assignments,</span>
+<span id="cb1-213"><a href="#cb1-213" tabindex="-1"></a>      range_stub,</span>
+<span id="cb1-214"><a href="#cb1-214" tabindex="-1"></a>      <span class="sc">~</span> <span class="fu">tibble</span>(</span>
+<span id="cb1-215"><a href="#cb1-215" tabindex="-1"></a>        <span class="at">code =</span> .x,</span>
+<span id="cb1-216"><a href="#cb1-216" tabindex="-1"></a>        <span class="at">range =</span> .y,</span>
+<span id="cb1-217"><a href="#cb1-217" tabindex="-1"></a>        <span class="at">weight =</span> <span class="fu">unname</span>(code_weights[.x])</span>
+<span id="cb1-218"><a href="#cb1-218" tabindex="-1"></a>      )</span>
+<span id="cb1-219"><a href="#cb1-219" tabindex="-1"></a>    ),</span>
+<span id="cb1-220"><a href="#cb1-220" tabindex="-1"></a>    <span class="st">`</span><span class="at">Codes Applied Combined</span><span class="st">`</span> <span class="ot">=</span> purrr<span class="sc">::</span><span class="fu">map_chr</span>(</span>
+<span id="cb1-221"><a href="#cb1-221" tabindex="-1"></a>      code_details,</span>
+<span id="cb1-222"><a href="#cb1-222" tabindex="-1"></a>      <span class="sc">~</span> <span class="fu">paste</span>(<span class="fu">intersect</span>(code_order, .x<span class="sc">$</span>code), <span class="at">collapse =</span> <span class="st">&quot;; &quot;</span>)</span>
+<span id="cb1-223"><a href="#cb1-223" tabindex="-1"></a>    )</span>
+<span id="cb1-224"><a href="#cb1-224" tabindex="-1"></a>  )</span>
+<span id="cb1-225"><a href="#cb1-225" tabindex="-1"></a><span class="cf">for</span> (code <span class="cf">in</span> code_order) {</span>
+<span id="cb1-226"><a href="#cb1-226" tabindex="-1"></a>  applied_col <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;Code: &quot;</span>, code, <span class="st">&quot; Applied&quot;</span>)</span>
+<span id="cb1-227"><a href="#cb1-227" tabindex="-1"></a>  range_col <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;Code: &quot;</span>, code, <span class="st">&quot; Range&quot;</span>)</span>
+<span id="cb1-228"><a href="#cb1-228" tabindex="-1"></a>  weight_col <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;Code: &quot;</span>, code, <span class="st">&quot; Weight&quot;</span>)</span>
+<span id="cb1-229"><a href="#cb1-229" tabindex="-1"></a>  demo_excerpts[[applied_col]] <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map_chr</span>(</span>
+<span id="cb1-230"><a href="#cb1-230" tabindex="-1"></a>    demo_excerpts<span class="sc">$</span>code_details,</span>
+<span id="cb1-231"><a href="#cb1-231" tabindex="-1"></a>    <span class="sc">~</span> <span class="cf">if</span> (code <span class="sc">%in%</span> .x<span class="sc">$</span>code) <span class="st">&quot;True&quot;</span> <span class="cf">else</span> <span class="st">&quot;False&quot;</span></span>
+<span id="cb1-232"><a href="#cb1-232" tabindex="-1"></a>  )</span>
+<span id="cb1-233"><a href="#cb1-233" tabindex="-1"></a>  demo_excerpts[[range_col]] <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map_chr</span>(</span>
+<span id="cb1-234"><a href="#cb1-234" tabindex="-1"></a>    demo_excerpts<span class="sc">$</span>code_details,</span>
+<span id="cb1-235"><a href="#cb1-235" tabindex="-1"></a>    <span class="sc">~</span> {</span>
+<span id="cb1-236"><a href="#cb1-236" tabindex="-1"></a>      rng <span class="ot">&lt;-</span> .x<span class="sc">$</span>range[.x<span class="sc">$</span>code <span class="sc">==</span> code]</span>
+<span id="cb1-237"><a href="#cb1-237" tabindex="-1"></a>      <span class="cf">if</span> (<span class="fu">length</span>(rng) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_character_</span> <span class="cf">else</span> rng</span>
+<span id="cb1-238"><a href="#cb1-238" tabindex="-1"></a>    }</span>
+<span id="cb1-239"><a href="#cb1-239" tabindex="-1"></a>  )</span>
+<span id="cb1-240"><a href="#cb1-240" tabindex="-1"></a>  demo_excerpts[[weight_col]] <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map_dbl</span>(</span>
+<span id="cb1-241"><a href="#cb1-241" tabindex="-1"></a>    demo_excerpts<span class="sc">$</span>code_details,</span>
+<span id="cb1-242"><a href="#cb1-242" tabindex="-1"></a>    <span class="sc">~</span> {</span>
+<span id="cb1-243"><a href="#cb1-243" tabindex="-1"></a>      wt <span class="ot">&lt;-</span> .x<span class="sc">$</span>weight[.x<span class="sc">$</span>code <span class="sc">==</span> code]</span>
+<span id="cb1-244"><a href="#cb1-244" tabindex="-1"></a>      <span class="cf">if</span> (<span class="fu">length</span>(wt) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> wt</span>
+<span id="cb1-245"><a href="#cb1-245" tabindex="-1"></a>    }</span>
+<span id="cb1-246"><a href="#cb1-246" tabindex="-1"></a>  )</span>
+<span id="cb1-247"><a href="#cb1-247" tabindex="-1"></a>}</span>
+<span id="cb1-248"><a href="#cb1-248" tabindex="-1"></a>demo_excerpts <span class="ot">&lt;-</span> demo_excerpts <span class="sc">|&gt;</span></span>
+<span id="cb1-249"><a href="#cb1-249" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
+<span id="cb1-250"><a href="#cb1-250" tabindex="-1"></a>    <span class="sc">-</span>range_stub,</span>
+<span id="cb1-251"><a href="#cb1-251" tabindex="-1"></a>    <span class="sc">-</span>code_details</span>
+<span id="cb1-252"><a href="#cb1-252" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb1-253"><a href="#cb1-253" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">relocate</span>(<span class="st">`</span><span class="at">Codes Applied Combined</span><span class="st">`</span>, <span class="at">.after =</span> <span class="st">`</span><span class="at">Resource Date</span><span class="st">`</span>)</span>
+<span id="cb1-254"><a href="#cb1-254" tabindex="-1"></a>demo_excerpts</span>
+<span id="cb1-255"><a href="#cb1-255" tabindex="-1"></a><span class="co">#&gt; # A tibble: 20 × 41</span></span>
+<span id="cb1-256"><a href="#cb1-256" tabindex="-1"></a><span class="co">#&gt;    `Media Title` `Excerpt Range` `Excerpt Creator` `Excerpt Date` `Excerpt Copy`</span></span>
+<span id="cb1-257"><a href="#cb1-257" tabindex="-1"></a><span class="co">#&gt;    &lt;chr&gt;         &lt;chr&gt;           &lt;chr&gt;             &lt;date&gt;         &lt;chr&gt;         </span></span>
+<span id="cb1-258"><a href="#cb1-258" tabindex="-1"></a><span class="co">#&gt;  1 Interview: O… Excerpt 12-56   Aliyah            2023-06-10     Keeping the d…</span></span>
+<span id="cb1-259"><a href="#cb1-259" tabindex="-1"></a><span class="co">#&gt;  2 Focus Group:… Excerpt 04-38   Rohan             2023-07-18     During the rh…</span></span>
+<span id="cb1-260"><a href="#cb1-260" tabindex="-1"></a><span class="co">#&gt;  3 Interview: A… Excerpt 77-112  Aliyah            2024-01-08     When I get ma…</span></span>
+<span id="cb1-261"><a href="#cb1-261" tabindex="-1"></a><span class="co">#&gt;  4 Classroom Ob… Excerpt 15-42   Lina              2023-07-24     In lyric lab …</span></span>
+<span id="cb1-262"><a href="#cb1-262" tabindex="-1"></a><span class="co">#&gt;  5 Journal Club… Excerpt 33-80   Mateo             2023-08-05     During the ca…</span></span>
+<span id="cb1-263"><a href="#cb1-263" tabindex="-1"></a><span class="co">#&gt;  6 Parent Inter… Excerpt 08-29   Priya             2023-08-12     On practice n…</span></span>
+<span id="cb1-264"><a href="#cb1-264" tabindex="-1"></a><span class="co">#&gt;  7 Coach Debrie… Excerpt 21-48   Lina              2023-08-19     During the st…</span></span>
+<span id="cb1-265"><a href="#cb1-265" tabindex="-1"></a><span class="co">#&gt;  8 Interview: T… Excerpt 44-78   Rohan             2023-08-26     The teen beat…</span></span>
+<span id="cb1-266"><a href="#cb1-266" tabindex="-1"></a><span class="co">#&gt;  9 Workshop: Be… Excerpt 63-97   Aliyah            2023-09-02     Aliyah&#39;s note…</span></span>
+<span id="cb1-267"><a href="#cb1-267" tabindex="-1"></a><span class="co">#&gt; 10 Focus Group:… Excerpt 10-35   Mateo             2023-09-09     In mentor cir…</span></span>
+<span id="cb1-268"><a href="#cb1-268" tabindex="-1"></a><span class="co">#&gt; 11 Observation:… Excerpt 52-85   Priya             2023-09-16     During homewo…</span></span>
+<span id="cb1-269"><a href="#cb1-269" tabindex="-1"></a><span class="co">#&gt; 12 Interview: C… Excerpt 18-41   Jordan            2023-09-23     At the closin…</span></span>
+<span id="cb1-270"><a href="#cb1-270" tabindex="-1"></a><span class="co">#&gt; 13 Survey Comme… Excerpt 71-103  Aliyah            2023-09-30     While recordi…</span></span>
+<span id="cb1-271"><a href="#cb1-271" tabindex="-1"></a><span class="co">#&gt; 14 Survey Comme… Excerpt 26-50   Rohan             2023-10-07     Rohan noted t…</span></span>
+<span id="cb1-272"><a href="#cb1-272" tabindex="-1"></a><span class="co">#&gt; 15 Interview: L… Excerpt 39-72   Jordan            2023-10-14     In leadership…</span></span>
+<span id="cb1-273"><a href="#cb1-273" tabindex="-1"></a><span class="co">#&gt; 16 Observation:… Excerpt 14-36   Priya             2023-10-21     During peer p…</span></span>
+<span id="cb1-274"><a href="#cb1-274" tabindex="-1"></a><span class="co">#&gt; 17 Focus Group:… Excerpt 58-90   Lina              2023-10-28     Reflection ro…</span></span>
+<span id="cb1-275"><a href="#cb1-275" tabindex="-1"></a><span class="co">#&gt; 18 Interview: N… Excerpt 23-47   Mateo             2023-11-04     The new campe…</span></span>
+<span id="cb1-276"><a href="#cb1-276" tabindex="-1"></a><span class="co">#&gt; 19 Observation:… Excerpt 66-101  Jordan            2023-11-11     Goal setting …</span></span>
+<span id="cb1-277"><a href="#cb1-277" tabindex="-1"></a><span class="co">#&gt; 20 Workshop: Im… Excerpt 30-63   Priya             2023-11-18     In improvisat…</span></span>
+<span id="cb1-278"><a href="#cb1-278" tabindex="-1"></a><span class="co">#&gt; # ℹ 36 more variables: `Resource Creator` &lt;chr&gt;, `Resource Date` &lt;date&gt;,</span></span>
+<span id="cb1-279"><a href="#cb1-279" tabindex="-1"></a><span class="co">#&gt; #   `Codes Applied Combined` &lt;chr&gt;, `Code: Motor Skills Applied` &lt;chr&gt;,</span></span>
+<span id="cb1-280"><a href="#cb1-280" tabindex="-1"></a><span class="co">#&gt; #   `Code: Motor Skills Range` &lt;chr&gt;, `Code: Motor Skills Weight` &lt;dbl&gt;,</span></span>
+<span id="cb1-281"><a href="#cb1-281" tabindex="-1"></a><span class="co">#&gt; #   `Code: Social Skills Applied` &lt;chr&gt;, `Code: Social Skills Range` &lt;chr&gt;,</span></span>
+<span id="cb1-282"><a href="#cb1-282" tabindex="-1"></a><span class="co">#&gt; #   `Code: Social Skills Weight` &lt;dbl&gt;, `Code: Self-expression Applied` &lt;chr&gt;,</span></span>
+<span id="cb1-283"><a href="#cb1-283" tabindex="-1"></a><span class="co">#&gt; #   `Code: Self-expression Range` &lt;chr&gt;, `Code: Self-expression Weight` &lt;dbl&gt;,</span></span>
+<span id="cb1-284"><a href="#cb1-284" tabindex="-1"></a><span class="co">#&gt; #   `Code: Emotional Regulation Applied` &lt;chr&gt;, …</span></span>
+<span id="cb1-285"><a href="#cb1-285" tabindex="-1"></a></span>
+<span id="cb1-286"><a href="#cb1-286" tabindex="-1"></a></span>
+<span id="cb1-287"><a href="#cb1-287" tabindex="-1"></a>preferred_coders <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Aliyah&quot;</span>, <span class="st">&quot;Rohan&quot;</span>, <span class="st">&quot;Lina&quot;</span>, <span class="st">&quot;Mateo&quot;</span>, <span class="st">&quot;Priya&quot;</span>, <span class="st">&quot;Jordan&quot;</span>)</span>
+<span id="cb1-288"><a href="#cb1-288" tabindex="-1"></a>cleaned <span class="ot">&lt;-</span> <span class="fu">clean_data</span>(</span>
+<span id="cb1-289"><a href="#cb1-289" tabindex="-1"></a>  <span class="at">excerpts =</span> demo_excerpts,</span>
+<span id="cb1-290"><a href="#cb1-290" tabindex="-1"></a>  <span class="at">preferred_coders =</span> preferred_coders,</span>
+<span id="cb1-291"><a href="#cb1-291" tabindex="-1"></a>  <span class="at">rename_vars =</span> <span class="fu">list</span>(<span class="at">resource_author =</span> <span class="st">&quot;resource_creator&quot;</span>),</span>
+<span id="cb1-292"><a href="#cb1-292" tabindex="-1"></a>  <span class="at">relabel_vars =</span> <span class="fu">list</span>(</span>
+<span id="cb1-293"><a href="#cb1-293" tabindex="-1"></a>    <span class="at">media_title =</span> <span class="st">&quot;Interview or focus group title&quot;</span>,</span>
+<span id="cb1-294"><a href="#cb1-294" tabindex="-1"></a>    <span class="at">resource_author =</span> <span class="st">&quot;Team member who uploaded to Dedoose&quot;</span></span>
+<span id="cb1-295"><a href="#cb1-295" tabindex="-1"></a>  )</span>
+<span id="cb1-296"><a href="#cb1-296" tabindex="-1"></a>)</span>
+<span id="cb1-297"><a href="#cb1-297" tabindex="-1"></a>recoded <span class="ot">&lt;-</span> <span class="fu">recode_themes</span>(</span>
+<span id="cb1-298"><a href="#cb1-298" tabindex="-1"></a>  <span class="at">data =</span> cleaned<span class="sc">$</span>data,</span>
+<span id="cb1-299"><a href="#cb1-299" tabindex="-1"></a>  <span class="at">recodes =</span> <span class="fu">list</span>(</span>
+<span id="cb1-300"><a href="#cb1-300" tabindex="-1"></a>    <span class="at">c_emotional_growth =</span> <span class="fu">c</span>(</span>
+<span id="cb1-301"><a href="#cb1-301" tabindex="-1"></a>      <span class="st">&quot;c_emotional_regulation&quot;</span>,</span>
+<span id="cb1-302"><a href="#cb1-302" tabindex="-1"></a>      <span class="st">&quot;c_emotion_identification&quot;</span></span>
+<span id="cb1-303"><a href="#cb1-303" tabindex="-1"></a>    )</span>
+<span id="cb1-304"><a href="#cb1-304" tabindex="-1"></a>  ),</span>
+<span id="cb1-305"><a href="#cb1-305" tabindex="-1"></a>  <span class="at">relabel_vars =</span> <span class="fu">list</span>(</span>
+<span id="cb1-306"><a href="#cb1-306" tabindex="-1"></a>    <span class="at">c_emotional_growth =</span> <span class="st">&quot;Emotional growth: identification and/or regulation&quot;</span></span>
+<span id="cb1-307"><a href="#cb1-307" tabindex="-1"></a>  )</span>
+<span id="cb1-308"><a href="#cb1-308" tabindex="-1"></a>)</span>
+<span id="cb1-309"><a href="#cb1-309" tabindex="-1"></a>data <span class="ot">&lt;-</span> recoded<span class="sc">$</span>data_recode</span>
+<span id="cb1-310"><a href="#cb1-310" tabindex="-1"></a>codebook <span class="ot">&lt;-</span> recoded<span class="sc">$</span>codebook_recode</span>
+<span id="cb1-311"><a href="#cb1-311" tabindex="-1"></a><span class="fu">dim</span>(data)</span>
+<span id="cb1-312"><a href="#cb1-312" tabindex="-1"></a><span class="co">#&gt; [1] 20 18</span></span>
+<span id="cb1-313"><a href="#cb1-313" tabindex="-1"></a></span>
+<span id="cb1-314"><a href="#cb1-314" tabindex="-1"></a>summary_results <span class="ot">&lt;-</span> <span class="fu">create_code_summary</span>(</span>
+<span id="cb1-315"><a href="#cb1-315" tabindex="-1"></a>  <span class="at">excerpts =</span> data,</span>
+<span id="cb1-316"><a href="#cb1-316" tabindex="-1"></a>  <span class="at">table_min_count =</span> <span class="dv">1</span>,</span>
+<span id="cb1-317"><a href="#cb1-317" tabindex="-1"></a>  <span class="at">plot =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb1-318"><a href="#cb1-318" tabindex="-1"></a>  <span class="at">plot_metric =</span> <span class="st">&quot;both&quot;</span>,</span>
+<span id="cb1-319"><a href="#cb1-319" tabindex="-1"></a>  <span class="at">output_type =</span> <span class="st">&quot;tibble&quot;</span>,</span>
+<span id="cb1-320"><a href="#cb1-320" tabindex="-1"></a>  <span class="at">use_labels =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb1-321"><a href="#cb1-321" tabindex="-1"></a>  <span class="at">codebook =</span> codebook</span>
+<span id="cb1-322"><a href="#cb1-322" tabindex="-1"></a>)</span>
+<span id="cb1-323"><a href="#cb1-323" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 4</span></span>
+<span id="cb1-324"><a href="#cb1-324" tabindex="-1"></a><span class="co">#&gt;    code                                   count n_media_titles prop_media_titles</span></span>
+<span id="cb1-325"><a href="#cb1-325" tabindex="-1"></a><span class="co">#&gt;    &lt;chr&gt;                                  &lt;int&gt;          &lt;int&gt;             &lt;dbl&gt;</span></span>
+<span id="cb1-326"><a href="#cb1-326" tabindex="-1"></a><span class="co">#&gt;  1 academic skills                           20             20              1   </span></span>
+<span id="cb1-327"><a href="#cb1-327" tabindex="-1"></a><span class="co">#&gt;  2 Emotional growth: identification and/…    15             15              0.75</span></span>
+<span id="cb1-328"><a href="#cb1-328" tabindex="-1"></a><span class="co">#&gt;  3 externalizing behavior                     6              6              0.3 </span></span>
+<span id="cb1-329"><a href="#cb1-329" tabindex="-1"></a><span class="co">#&gt;  4 growth mindset                            12             12              0.6 </span></span>
+<span id="cb1-330"><a href="#cb1-330" tabindex="-1"></a><span class="co">#&gt;  5 inhibitory control                        10             10              0.5 </span></span>
+<span id="cb1-331"><a href="#cb1-331" tabindex="-1"></a><span class="co">#&gt;  6 internalizing behavior                    12             12              0.6 </span></span>
+<span id="cb1-332"><a href="#cb1-332" tabindex="-1"></a><span class="co">#&gt;  7 motor skills                               5              5              0.25</span></span>
+<span id="cb1-333"><a href="#cb1-333" tabindex="-1"></a><span class="co">#&gt;  8 self-esteem                               15             15              0.75</span></span>
+<span id="cb1-334"><a href="#cb1-334" tabindex="-1"></a><span class="co">#&gt;  9 self-expression                            9              9              0.45</span></span>
+<span id="cb1-335"><a href="#cb1-335" tabindex="-1"></a><span class="co">#&gt; 10 social skills                             10             10              0.5</span></span>
+<span id="cb1-336"><a href="#cb1-336" tabindex="-1"></a>summary_results<span class="sc">$</span>table</span>
+<span id="cb1-337"><a href="#cb1-337" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 4</span></span>
+<span id="cb1-338"><a href="#cb1-338" tabindex="-1"></a><span class="co">#&gt;    code                                   count n_media_titles prop_media_titles</span></span>
+<span id="cb1-339"><a href="#cb1-339" tabindex="-1"></a><span class="co">#&gt;    &lt;chr&gt;                                  &lt;int&gt;          &lt;int&gt;             &lt;dbl&gt;</span></span>
+<span id="cb1-340"><a href="#cb1-340" tabindex="-1"></a><span class="co">#&gt;  1 academic skills                           20             20              1   </span></span>
+<span id="cb1-341"><a href="#cb1-341" tabindex="-1"></a><span class="co">#&gt;  2 Emotional growth: identification and/…    15             15              0.75</span></span>
+<span id="cb1-342"><a href="#cb1-342" tabindex="-1"></a><span class="co">#&gt;  3 externalizing behavior                     6              6              0.3 </span></span>
+<span id="cb1-343"><a href="#cb1-343" tabindex="-1"></a><span class="co">#&gt;  4 growth mindset                            12             12              0.6 </span></span>
+<span id="cb1-344"><a href="#cb1-344" tabindex="-1"></a><span class="co">#&gt;  5 inhibitory control                        10             10              0.5 </span></span>
+<span id="cb1-345"><a href="#cb1-345" tabindex="-1"></a><span class="co">#&gt;  6 internalizing behavior                    12             12              0.6 </span></span>
+<span id="cb1-346"><a href="#cb1-346" tabindex="-1"></a><span class="co">#&gt;  7 motor skills                               5              5              0.25</span></span>
+<span id="cb1-347"><a href="#cb1-347" tabindex="-1"></a><span class="co">#&gt;  8 self-esteem                               15             15              0.75</span></span>
+<span id="cb1-348"><a href="#cb1-348" tabindex="-1"></a><span class="co">#&gt;  9 self-expression                            9              9              0.45</span></span>
+<span id="cb1-349"><a href="#cb1-349" tabindex="-1"></a><span class="co">#&gt; 10 social skills                             10             10              0.5</span></span></code></pre></div>
+<p><code>set_saturation()</code> uses the output of
+<code>create_code_summary</code> to filter and visualiz codes that meet
+minimum appearance targets. Here we look for at least eight excerpts and
+presence in 40% of media titles (eight of the 20 transcripts). The
+dual-axis plot keeps counts and coverage together.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>total_media_titles <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">n_distinct</span>(data<span class="sc">$</span>media_title)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>saturation_results <span class="ot">&lt;-</span> <span class="fu">set_saturation</span>(</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="at">code_counts =</span> summary_results<span class="sc">$</span>table,</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">total_media_titles =</span> total_media_titles,</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="at">table_min_count =</span> <span class="dv">8</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="at">table_min_prop =</span> <span class="fl">0.4</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="at">plot =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  <span class="at">plot_metric =</span> <span class="st">&quot;both&quot;</span>,</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="at">fill_color =</span> <span class="st">&quot;#3B7EA1&quot;</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>saturation_results<span class="sc">$</span>table</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt; # A tibble: 8 × 3</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="co">#&gt;   code                                               count prop_media_titles</span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="co">#&gt;   &lt;chr&gt;                                              &lt;int&gt;             &lt;dbl&gt;</span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="co">#&gt; 1 academic skills                                       20              1   </span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co">#&gt; 2 Emotional growth: identification and/or regulation    15              0.75</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="co">#&gt; 3 self-esteem                                           15              0.75</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="co">#&gt; 4 growth mindset                                        12              0.6 </span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co">#&gt; 5 internalizing behavior                                12              0.6 </span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="co">#&gt; 6 inhibitory control                                    10              0.5 </span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="co">#&gt; 7 social skills                                         10              0.5 </span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co">#&gt; 8 self-expression                                        9              0.45</span></span></code></pre></div>
+<p>And you can visualize it too :)</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>saturation_results<span class="sc">$</span>plot</span></code></pre></div>
+<p><img role="img" src="data:image/png;base64,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WfsQAkIgEwE5oExYtFIICIG2QEAOqC1Q1j6EgBDIREAOKBMWrRQCQqAtEJAyalugrH00LAITJkxwf/7znyv9X3zxxU3bauedd3arrLJKZf2itPDJJ5+4ZZdd1v3v//6vO//8892IESPc6quvvlC6+Nlnn7kf//jH7vnnn3d77rmnGzJkSJN+iA+oCRz6IgSaItCjRw8HiVZQckBO+O2333b//d//7W6++Wa7qJrWWLjfjjnmGLfyyiu7008/3aSPl156affAAw+4rbfeeqF07LTTTnNXXXWV23///Q2rLbfcskk/5ICawKEvQqApAjigfffd111wwQWVDTghfs2feuop9/7771fWLwoL/fr1sygDB7Qo2C677GIihFOmTMnsjnJAmbBopRDIR4Bp2NChQ90f/vAHc0CzZs1yF110kbvlllvcrrvuap/UZvspp5zitt9+e4sAiESCQcZ16KGHut/97neOqGXw4MHuRz/6kfv0009DEZtC/fSnP3W77767tXvZZZc56gVjegjB+4knnuiGDRvmRo0aZdHZXXfd5S688EL3r3/9y/aBImmwxx9/3I0cOdJtt9127vvf/777/e9/HzY5hANxtHPmzHEHH3ywUaeiYspULs+KxviDH/zAJJiffvpp6weOO21yQGlE9F0IlECAC5/pzYorruheffVVN378eMcFt9xyy7l//OMfljdChubee+8158E0DifDdATjor766qvNEVAex3X55Zebc0BDHTvooIPc6NGj3VprreU22mgjc3KDBg1yYTt9OOyww8xh4Lh69eplfVp11VVtmX2yj6DDNX36dLfFFlu4v/zlL+ZAcZx9+vRxb775pu3vtddeMyfIdKlLly5uk002cUyh4ujPCn7xj9xY0RjXW289BxE9U8L+/fu7r3zlK3H1/1/2g5EJASGQg4BP3iabb755cuaZZ9rfUUcdlfTs2RMPkVx88cVWy08v7PvcuXMrrfjIJ/na176WfP75503W+eRw8ve//z3xTsfq+Giksp36tPvwww8nfnpnyz6aqWwP6+644w5b551Rsvbaayc+0qmU8Y4qOe+88+w7+6Y9TwBv37t3754MHz68UpYF1vkppq277rrrrPxzzz1XKeMdnI2/siJaaG6MFPXRX3LCCSdEtZouKgL6fz+s/0IgF4F3333XMXXhj+Vtt93WVB0gVg+2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6Oass84yh0POB2J9DL5qDBHG5557znk1V92GN0T0TwgIgZogcOWVV1a00rgDFizcjschoYOGrbLKKnJAASB9CgEhUD8E5s+fb1pqTL/ID3FrHmURPYhYP8zVshAQAs0goBxQMwBpsxAQAvVDQA6oftiqZSEgBJpBQA6oGYC0WQgIgfohIAdUP2zVshAQAs0goFcxmgFIm4VAPRC44oorHM/MZBnvSI0cOTJr00Jfx+sVPFwYHipMd2jy5Mn2zld6Pd+HDRvm1lxzzSab5ICawKEvQqBtEMAB/e1vf1vggmTvcOYsivbnP//Zbbrppu7uu+92a6+9dmYXJ02aZO95rbPOOgtsHzRo0ALr5IAWgEQrhEDbILDXXnu5sWPHts3OarCXjz/+2Dh+mmtq8ODB7qqrrmqumG2XAyoFkwoJgbZH4L777nN33nmnu+CCC+zBPXowfvx4i5xOP/1069DTTz9tTx7DQLjddtu5vffe25gH2cjLoJdccombM2eOW3HFFd0BBxzgttlmG6s3a9Ys9+ijj7oePXq4qVOnuuHDh7uuXbu6Bx980A0YMMARySy++OL2EumQIUNsn2PGjLG67PvQQw+1/dmKKv6l96skdBXgqagQqCUCvKTJNCz9B4cOtsUWW7iHHnrIHXfccfYdilPeIt96663t++zZs82hvPnmm2733Xd3t99+uzkMNtJm3759HU4MB8J7WDvvvLO7/vrrrS6EYTizH/zgB2655ZYzqgzoMYjIRowY4fr37+9WXnllt99++5mDo/53vvMdq9unTx/bZl8y/vEKBnmi+C+8lpHer/MbZEJACLQxAj179uRFqcw/H5FUevPkk08m/uJPrrnmmsRHMYmPhirbNt988+Too4+ufPc8O4knA0teeuml5Ic//GGy9NJLJ37aVNnOOs/LnHjHkHjCMNv33LlzK9uvu+46W3fPPfdU1o0ePTrxr03Yd+/obLunWq1sTy9stNFGmWPyjs6KpverKViGB9cqIdAWCOy///7upJNOWmBXTIWCbbzxxo4pz8EHH2zRjncItslfzW7evHnu5JNPDkVtmjZjxgz7/tRTT1mUcuGFF1a2v/fee8bL/O6779o6SMLWX3/9ynYWWDdw4MDKuu23395ddNFFRiRfWdnMwm677eZOOeWUJqVWW221yvd4v3JAFVi0IATaFoGVVlqpMq0p2jNTJCzw6rDMFOvTTz91Psrh6wLGHatOnToZIVjY2KVLF0ceB5IwjHbDcihDroh6wVZYYQVbZF95t95D2fDJ1G2zzTYLXxf4jPerHNAC8GiFEFh0EHjhhRccUc/ll19uZO8klbFlllnG4cBQnghGzmXPPfd0jzzyiN3e567V+eef7/zUy/6IopDJwcnkGdERuaBgv/71r83JcVs9EIkRfdXKFAHVCkm1IwSqRICLnTtRaeNC9/kd41Tm4T1ua/tcj5G884DiDjvs4KA15U4USeO11lrLpk3c+n7sscecz+VYFAMx/DnnnOOOP/5499lnn9mDgEzvSDIX2bnnnuvGjRtntBk+92R3z4iUQjTk80Y2vYPrudWWTiLpuxAQAvVHoCgJ7R2QdcDnUSzx/MEHH1Q65PMrCXX//ve/299hhx2WeJKvxE+PEj/tSbzkTaWsV6JIfJSU+JxLsuyyyyZ77LFH8v7779t2ksEkpGMjCe2dSuKfT7I6Sy21VOLzVImf+lWK7bjjjpZk9tpflXXxAknoI444Il7VZDm9X/EBtdqFqwEhsHAR+Pzzzx3TLZRHs4zkM9MunuspMm7LEfkZAAAAqElEQVTRw+XMKyIfffSRRVHeCS1Q5a9//attg92wtaYpWGsRVH0hsJAR4K5SnvOha6uuumrVPezcuXNuHZgMa2VKQtcKSbUjBBocAe5yFSWo6zE8TcHqgaraFAJCoBQCioBKwaRCQkAI1AMBOaB6oKo2hYAQKIWAHFApmFRICAiBeiAgB1QPVNWmEBACpRCQAyoFkwoJASFQDwTkgOqBqtoUAkKgFAL/B8a8SBr+aeYxAAAAAElFTkSuQmCC" /><!-- --></p>
+<p><code>compare_saturation()</code> builds on the same summary table to
+check multiple threshold sets at once - useful when you want a strict
+bar versus a more liberal bar. Each threshold needs a minimum excerpt
+count and a minimum proportion of media titles.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="st">&quot;Liberal (&gt;=8 excerpts, &gt;=40% transcripts)&quot;</span> <span class="ot">=</span> <span class="fu">list</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>    <span class="at">code_count =</span> <span class="dv">8</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>    <span class="at">prop_media_title =</span> <span class="fl">0.4</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  ),</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="st">&quot;Strict (&gt;=12 excerpts, &gt;=60% transcripts)&quot;</span> <span class="ot">=</span> <span class="fu">list</span>(</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>    <span class="at">code_count =</span> <span class="dv">12</span>,</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>    <span class="at">prop_media_title =</span> <span class="fl">0.6</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  )</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>)</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>comparison_results <span class="ot">&lt;-</span> <span class="fu">compare_saturation</span>(</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>  <span class="at">code_summary =</span> summary_results<span class="sc">$</span>table,</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>  <span class="at">thresholds_list =</span> thresholds,</span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>  <span class="at">plot =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>  <span class="at">plot_metric =</span> <span class="st">&quot;both&quot;</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a>)</span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a></span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a>comparison_results<span class="sc">$</span>results </span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 6</span></span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a><span class="co">#&gt;    code            count n_media_titles prop_media_titles Liberal (&gt;=8 excerpt…¹</span></span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a><span class="co">#&gt;    &lt;chr&gt;           &lt;int&gt;          &lt;int&gt;             &lt;dbl&gt; &lt;lgl&gt;                 </span></span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a><span class="co">#&gt;  1 academic skills    20             20              1    TRUE                  </span></span>
+<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a><span class="co">#&gt;  2 Emotional grow…    15             15              0.75 TRUE                  </span></span>
+<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a><span class="co">#&gt;  3 externalizing …     6              6              0.3  FALSE                 </span></span>
+<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a><span class="co">#&gt;  4 growth mindset     12             12              0.6  TRUE                  </span></span>
+<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a><span class="co">#&gt;  5 inhibitory con…    10             10              0.5  TRUE                  </span></span>
+<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a><span class="co">#&gt;  6 internalizing …    12             12              0.6  TRUE                  </span></span>
+<span id="cb4-29"><a href="#cb4-29" tabindex="-1"></a><span class="co">#&gt;  7 motor skills        5              5              0.25 FALSE                 </span></span>
+<span id="cb4-30"><a href="#cb4-30" tabindex="-1"></a><span class="co">#&gt;  8 self-esteem        15             15              0.75 TRUE                  </span></span>
+<span id="cb4-31"><a href="#cb4-31" tabindex="-1"></a><span class="co">#&gt;  9 self-expression     9              9              0.45 TRUE                  </span></span>
+<span id="cb4-32"><a href="#cb4-32" tabindex="-1"></a><span class="co">#&gt; 10 social skills      10             10              0.5  TRUE                  </span></span>
+<span id="cb4-33"><a href="#cb4-33" tabindex="-1"></a><span class="co">#&gt; # ℹ abbreviated name: ¹​`Liberal (&gt;=8 excerpts, &gt;=40% transcripts)`</span></span>
+<span id="cb4-34"><a href="#cb4-34" tabindex="-1"></a><span class="co">#&gt; # ℹ 1 more variable: `Strict (&gt;=12 excerpts, &gt;=60% transcripts)` &lt;lgl&gt;</span></span></code></pre></div>
+<p>And here’s the faceted view that spotlights which codes meet each
+target level.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>comparison_results<span class="sc">$</span>plot</span></code></pre></div>
+<p><img role="img" src="data:image/png;base64,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" /><!-- --></p>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

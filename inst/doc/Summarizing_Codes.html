@@ -1,0 +1,2998 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>2. Summarizing Codes</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+<style type="text/css">@layer htmltools {
+.html-fill-container {
+display: flex;
+flex-direction: column;
+
+min-height: 0;
+min-width: 0;
+}
+.html-fill-container > .html-fill-item {
+
+flex: 1 1 auto;
+min-height: 0;
+min-width: 0;
+}
+.html-fill-container > :not(.html-fill-item) {
+
+flex: 0 0 auto;
+}
+}
+</style>
+<script>(function() {
+  // If window.HTMLWidgets is already defined, then use it; otherwise create a
+  // new object. This allows preceding code to set options that affect the
+  // initialization process (though none currently exist).
+  window.HTMLWidgets = window.HTMLWidgets || {};
+
+  // See if we're running in a viewer pane. If not, we're in a web browser.
+  var viewerMode = window.HTMLWidgets.viewerMode =
+      /\bviewer_pane=1\b/.test(window.location);
+
+  // See if we're running in Shiny mode. If not, it's a static document.
+  // Note that static widgets can appear in both Shiny and static modes, but
+  // obviously, Shiny widgets can only appear in Shiny apps/documents.
+  var shinyMode = window.HTMLWidgets.shinyMode =
+      typeof(window.Shiny) !== "undefined" && !!window.Shiny.outputBindings;
+
+  // We can't count on jQuery being available, so we implement our own
+  // version if necessary.
+  function querySelectorAll(scope, selector) {
+    if (typeof(jQuery) !== "undefined" && scope instanceof jQuery) {
+      return scope.find(selector);
+    }
+    if (scope.querySelectorAll) {
+      return scope.querySelectorAll(selector);
+    }
+  }
+
+  function asArray(value) {
+    if (value === null)
+      return [];
+    if ($.isArray(value))
+      return value;
+    return [value];
+  }
+
+  // Implement jQuery's extend
+  function extend(target /*, ... */) {
+    if (arguments.length == 1) {
+      return target;
+    }
+    for (var i = 1; i < arguments.length; i++) {
+      var source = arguments[i];
+      for (var prop in source) {
+        if (source.hasOwnProperty(prop)) {
+          target[prop] = source[prop];
+        }
+      }
+    }
+    return target;
+  }
+
+  // IE8 doesn't support Array.forEach.
+  function forEach(values, callback, thisArg) {
+    if (values.forEach) {
+      values.forEach(callback, thisArg);
+    } else {
+      for (var i = 0; i < values.length; i++) {
+        callback.call(thisArg, values[i], i, values);
+      }
+    }
+  }
+
+  // Replaces the specified method with the return value of funcSource.
+  //
+  // Note that funcSource should not BE the new method, it should be a function
+  // that RETURNS the new method. funcSource receives a single argument that is
+  // the overridden method, it can be called from the new method. The overridden
+  // method can be called like a regular function, it has the target permanently
+  // bound to it so "this" will work correctly.
+  function overrideMethod(target, methodName, funcSource) {
+    var superFunc = target[methodName] || function() {};
+    var superFuncBound = function() {
+      return superFunc.apply(target, arguments);
+    };
+    target[methodName] = funcSource(superFuncBound);
+  }
+
+  // Add a method to delegator that, when invoked, calls
+  // delegatee.methodName. If there is no such method on
+  // the delegatee, but there was one on delegator before
+  // delegateMethod was called, then the original version
+  // is invoked instead.
+  // For example:
+  //
+  // var a = {
+  //   method1: function() { console.log('a1'); }
+  //   method2: function() { console.log('a2'); }
+  // };
+  // var b = {
+  //   method1: function() { console.log('b1'); }
+  // };
+  // delegateMethod(a, b, "method1");
+  // delegateMethod(a, b, "method2");
+  // a.method1();
+  // a.method2();
+  //
+  // The output would be "b1", "a2".
+  function delegateMethod(delegator, delegatee, methodName) {
+    var inherited = delegator[methodName];
+    delegator[methodName] = function() {
+      var target = delegatee;
+      var method = delegatee[methodName];
+
+      // The method doesn't exist on the delegatee. Instead,
+      // call the method on the delegator, if it exists.
+      if (!method) {
+        target = delegator;
+        method = inherited;
+      }
+
+      if (method) {
+        return method.apply(target, arguments);
+      }
+    };
+  }
+
+  // Implement a vague facsimilie of jQuery's data method
+  function elementData(el, name, value) {
+    if (arguments.length == 2) {
+      return el["htmlwidget_data_" + name];
+    } else if (arguments.length == 3) {
+      el["htmlwidget_data_" + name] = value;
+      return el;
+    } else {
+      throw new Error("Wrong number of arguments for elementData: " +
+        arguments.length);
+    }
+  }
+
+  // http://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
+  function escapeRegExp(str) {
+    return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+  }
+
+  function hasClass(el, className) {
+    var re = new RegExp("\\b" + escapeRegExp(className) + "\\b");
+    return re.test(el.className);
+  }
+
+  // elements - array (or array-like object) of HTML elements
+  // className - class name to test for
+  // include - if true, only return elements with given className;
+  //   if false, only return elements *without* given className
+  function filterByClass(elements, className, include) {
+    var results = [];
+    for (var i = 0; i < elements.length; i++) {
+      if (hasClass(elements[i], className) == include)
+        results.push(elements[i]);
+    }
+    return results;
+  }
+
+  function on(obj, eventName, func) {
+    if (obj.addEventListener) {
+      obj.addEventListener(eventName, func, false);
+    } else if (obj.attachEvent) {
+      obj.attachEvent(eventName, func);
+    }
+  }
+
+  function off(obj, eventName, func) {
+    if (obj.removeEventListener)
+      obj.removeEventListener(eventName, func, false);
+    else if (obj.detachEvent) {
+      obj.detachEvent(eventName, func);
+    }
+  }
+
+  // Translate array of values to top/right/bottom/left, as usual with
+  // the "padding" CSS property
+  // https://developer.mozilla.org/en-US/docs/Web/CSS/padding
+  function unpackPadding(value) {
+    if (typeof(value) === "number")
+      value = [value];
+    if (value.length === 1) {
+      return {top: value[0], right: value[0], bottom: value[0], left: value[0]};
+    }
+    if (value.length === 2) {
+      return {top: value[0], right: value[1], bottom: value[0], left: value[1]};
+    }
+    if (value.length === 3) {
+      return {top: value[0], right: value[1], bottom: value[2], left: value[1]};
+    }
+    if (value.length === 4) {
+      return {top: value[0], right: value[1], bottom: value[2], left: value[3]};
+    }
+  }
+
+  // Convert an unpacked padding object to a CSS value
+  function paddingToCss(paddingObj) {
+    return paddingObj.top + "px " + paddingObj.right + "px " + paddingObj.bottom + "px " + paddingObj.left + "px";
+  }
+
+  // Makes a number suitable for CSS
+  function px(x) {
+    if (typeof(x) === "number")
+      return x + "px";
+    else
+      return x;
+  }
+
+  // Retrieves runtime widget sizing information for an element.
+  // The return value is either null, or an object with fill, padding,
+  // defaultWidth, defaultHeight fields.
+  function sizingPolicy(el) {
+    var sizingEl = document.querySelector("script[data-for='" + el.id + "'][type='application/htmlwidget-sizing']");
+    if (!sizingEl)
+      return null;
+    var sp = JSON.parse(sizingEl.textContent || sizingEl.text || "{}");
+    if (viewerMode) {
+      return sp.viewer;
+    } else {
+      return sp.browser;
+    }
+  }
+
+  // @param tasks Array of strings (or falsy value, in which case no-op).
+  //   Each element must be a valid JavaScript expression that yields a
+  //   function. Or, can be an array of objects with "code" and "data"
+  //   properties; in this case, the "code" property should be a string
+  //   of JS that's an expr that yields a function, and "data" should be
+  //   an object that will be added as an additional argument when that
+  //   function is called.
+  // @param target The object that will be "this" for each function
+  //   execution.
+  // @param args Array of arguments to be passed to the functions. (The
+  //   same arguments will be passed to all functions.)
+  function evalAndRun(tasks, target, args) {
+    if (tasks) {
+      forEach(tasks, function(task) {
+        var theseArgs = args;
+        if (typeof(task) === "object") {
+          theseArgs = theseArgs.concat([task.data]);
+          task = task.code;
+        }
+        var taskFunc = tryEval(task);
+        if (typeof(taskFunc) !== "function") {
+          throw new Error("Task must be a function! Source:\n" + task);
+        }
+        taskFunc.apply(target, theseArgs);
+      });
+    }
+  }
+
+  // Attempt eval() both with and without enclosing in parentheses.
+  // Note that enclosing coerces a function declaration into
+  // an expression that eval() can parse
+  // (otherwise, a SyntaxError is thrown)
+  function tryEval(code) {
+    var result = null;
+    try {
+      result = eval("(" + code + ")");
+    } catch(error) {
+      if (!(error instanceof SyntaxError)) {
+        throw error;
+      }
+      try {
+        result = eval(code);
+      } catch(e) {
+        if (e instanceof SyntaxError) {
+          throw error;
+        } else {
+          throw e;
+        }
+      }
+    }
+    return result;
+  }
+
+  function initSizing(el) {
+    var sizing = sizingPolicy(el);
+    if (!sizing)
+      return;
+
+    var cel = document.getElementById("htmlwidget_container");
+    if (!cel)
+      return;
+
+    if (typeof(sizing.padding) !== "undefined") {
+      document.body.style.margin = "0";
+      document.body.style.padding = paddingToCss(unpackPadding(sizing.padding));
+    }
+
+    if (sizing.fill) {
+      document.body.style.overflow = "hidden";
+      document.body.style.width = "100%";
+      document.body.style.height = "100%";
+      document.documentElement.style.width = "100%";
+      document.documentElement.style.height = "100%";
+      cel.style.position = "absolute";
+      var pad = unpackPadding(sizing.padding);
+      cel.style.top = pad.top + "px";
+      cel.style.right = pad.right + "px";
+      cel.style.bottom = pad.bottom + "px";
+      cel.style.left = pad.left + "px";
+      el.style.width = "100%";
+      el.style.height = "100%";
+
+      return {
+        getWidth: function() { return cel.getBoundingClientRect().width; },
+        getHeight: function() { return cel.getBoundingClientRect().height; }
+      };
+
+    } else {
+      el.style.width = px(sizing.width);
+      el.style.height = px(sizing.height);
+
+      return {
+        getWidth: function() { return cel.getBoundingClientRect().width; },
+        getHeight: function() { return cel.getBoundingClientRect().height; }
+      };
+    }
+  }
+
+  // Default implementations for methods
+  var defaults = {
+    find: function(scope) {
+      return querySelectorAll(scope, "." + this.name);
+    },
+    renderError: function(el, err) {
+      var $el = $(el);
+
+      this.clearError(el);
+
+      // Add all these error classes, as Shiny does
+      var errClass = "shiny-output-error";
+      if (err.type !== null) {
+        // use the classes of the error condition as CSS class names
+        errClass = errClass + " " + $.map(asArray(err.type), function(type) {
+          return errClass + "-" + type;
+        }).join(" ");
+      }
+      errClass = errClass + " htmlwidgets-error";
+
+      // Is el inline or block? If inline or inline-block, just display:none it
+      // and add an inline error.
+      var display = $el.css("display");
+      $el.data("restore-display-mode", display);
+
+      if (display === "inline" || display === "inline-block") {
+        $el.hide();
+        if (err.message !== "") {
+          var errorSpan = $("<span>").addClass(errClass);
+          errorSpan.text(err.message);
+          $el.after(errorSpan);
+        }
+      } else if (display === "block") {
+        // If block, add an error just after the el, set visibility:none on the
+        // el, and position the error to be on top of the el.
+        // Mark it with a unique ID and CSS class so we can remove it later.
+        $el.css("visibility", "hidden");
+        if (err.message !== "") {
+          var errorDiv = $("<div>").addClass(errClass).css("position", "absolute")
+            .css("top", el.offsetTop)
+            .css("left", el.offsetLeft)
+            // setting width can push out the page size, forcing otherwise
+            // unnecessary scrollbars to appear and making it impossible for
+            // the element to shrink; so use max-width instead
+            .css("maxWidth", el.offsetWidth)
+            .css("height", el.offsetHeight);
+          errorDiv.text(err.message);
+          $el.after(errorDiv);
+
+          // Really dumb way to keep the size/position of the error in sync with
+          // the parent element as the window is resized or whatever.
+          var intId = setInterval(function() {
+            if (!errorDiv[0].parentElement) {
+              clearInterval(intId);
+              return;
+            }
+            errorDiv
+              .css("top", el.offsetTop)
+              .css("left", el.offsetLeft)
+              .css("maxWidth", el.offsetWidth)
+              .css("height", el.offsetHeight);
+          }, 500);
+        }
+      }
+    },
+    clearError: function(el) {
+      var $el = $(el);
+      var display = $el.data("restore-display-mode");
+      $el.data("restore-display-mode", null);
+
+      if (display === "inline" || display === "inline-block") {
+        if (display)
+          $el.css("display", display);
+        $(el.nextSibling).filter(".htmlwidgets-error").remove();
+      } else if (display === "block"){
+        $el.css("visibility", "inherit");
+        $(el.nextSibling).filter(".htmlwidgets-error").remove();
+      }
+    },
+    sizing: {}
+  };
+
+  // Called by widget bindings to register a new type of widget. The definition
+  // object can contain the following properties:
+  // - name (required) - A string indicating the binding name, which will be
+  //   used by default as the CSS classname to look for.
+  // - initialize (optional) - A function(el) that will be called once per
+  //   widget element; if a value is returned, it will be passed as the third
+  //   value to renderValue.
+  // - renderValue (required) - A function(el, data, initValue) that will be
+  //   called with data. Static contexts will cause this to be called once per
+  //   element; Shiny apps will cause this to be called multiple times per
+  //   element, as the data changes.
+  window.HTMLWidgets.widget = function(definition) {
+    if (!definition.name) {
+      throw new Error("Widget must have a name");
+    }
+    if (!definition.type) {
+      throw new Error("Widget must have a type");
+    }
+    // Currently we only support output widgets
+    if (definition.type !== "output") {
+      throw new Error("Unrecognized widget type '" + definition.type + "'");
+    }
+    // TODO: Verify that .name is a valid CSS classname
+
+    // Support new-style instance-bound definitions. Old-style class-bound
+    // definitions have one widget "object" per widget per type/class of
+    // widget; the renderValue and resize methods on such widget objects
+    // take el and instance arguments, because the widget object can't
+    // store them. New-style instance-bound definitions have one widget
+    // object per widget instance; the definition that's passed in doesn't
+    // provide renderValue or resize methods at all, just the single method
+    //   factory(el, width, height)
+    // which returns an object that has renderValue(x) and resize(w, h).
+    // This enables a far more natural programming style for the widget
+    // author, who can store per-instance state using either OO-style
+    // instance fields or functional-style closure variables (I guess this
+    // is in contrast to what can only be called C-style pseudo-OO which is
+    // what we required before).
+    if (definition.factory) {
+      definition = createLegacyDefinitionAdapter(definition);
+    }
+
+    if (!definition.renderValue) {
+      throw new Error("Widget must have a renderValue function");
+    }
+
+    // For static rendering (non-Shiny), use a simple widget registration
+    // scheme. We also use this scheme for Shiny apps/documents that also
+    // contain static widgets.
+    window.HTMLWidgets.widgets = window.HTMLWidgets.widgets || [];
+    // Merge defaults into the definition; don't mutate the original definition.
+    var staticBinding = extend({}, defaults, definition);
+    overrideMethod(staticBinding, "find", function(superfunc) {
+      return function(scope) {
+        var results = superfunc(scope);
+        // Filter out Shiny outputs, we only want the static kind
+        return filterByClass(results, "html-widget-output", false);
+      };
+    });
+    window.HTMLWidgets.widgets.push(staticBinding);
+
+    if (shinyMode) {
+      // Shiny is running. Register the definition with an output binding.
+      // The definition itself will not be the output binding, instead
+      // we will make an output binding object that delegates to the
+      // definition. This is because we foolishly used the same method
+      // name (renderValue) for htmlwidgets definition and Shiny bindings
+      // but they actually have quite different semantics (the Shiny
+      // bindings receive data that includes lots of metadata that it
+      // strips off before calling htmlwidgets renderValue). We can't
+      // just ignore the difference because in some widgets it's helpful
+      // to call this.renderValue() from inside of resize(), and if
+      // we're not delegating, then that call will go to the Shiny
+      // version instead of the htmlwidgets version.
+
+      // Merge defaults with definition, without mutating either.
+      var bindingDef = extend({}, defaults, definition);
+
+      // This object will be our actual Shiny binding.
+      var shinyBinding = new Shiny.OutputBinding();
+
+      // With a few exceptions, we'll want to simply use the bindingDef's
+      // version of methods if they are available, otherwise fall back to
+      // Shiny's defaults. NOTE: If Shiny's output bindings gain additional
+      // methods in the future, and we want them to be overrideable by
+      // HTMLWidget binding definitions, then we'll need to add them to this
+      // list.
+      delegateMethod(shinyBinding, bindingDef, "getId");
+      delegateMethod(shinyBinding, bindingDef, "onValueChange");
+      delegateMethod(shinyBinding, bindingDef, "onValueError");
+      delegateMethod(shinyBinding, bindingDef, "renderError");
+      delegateMethod(shinyBinding, bindingDef, "clearError");
+      delegateMethod(shinyBinding, bindingDef, "showProgress");
+
+      // The find, renderValue, and resize are handled differently, because we
+      // want to actually decorate the behavior of the bindingDef methods.
+
+      shinyBinding.find = function(scope) {
+        var results = bindingDef.find(scope);
+
+        // Only return elements that are Shiny outputs, not static ones
+        var dynamicResults = results.filter(".html-widget-output");
+
+        // It's possible that whatever caused Shiny to think there might be
+        // new dynamic outputs, also caused there to be new static outputs.
+        // Since there might be lots of different htmlwidgets bindings, we
+        // schedule execution for later--no need to staticRender multiple
+        // times.
+        if (results.length !== dynamicResults.length)
+          scheduleStaticRender();
+
+        return dynamicResults;
+      };
+
+      // Wrap renderValue to handle initialization, which unfortunately isn't
+      // supported natively by Shiny at the time of this writing.
+
+      shinyBinding.renderValue = function(el, data) {
+        Shiny.renderDependencies(data.deps);
+        // Resolve strings marked as javascript literals to objects
+        if (!(data.evals instanceof Array)) data.evals = [data.evals];
+        for (var i = 0; data.evals && i < data.evals.length; i++) {
+          window.HTMLWidgets.evaluateStringMember(data.x, data.evals[i]);
+        }
+        if (!bindingDef.renderOnNullValue) {
+          if (data.x === null) {
+            el.style.visibility = "hidden";
+            return;
+          } else {
+            el.style.visibility = "inherit";
+          }
+        }
+        if (!elementData(el, "initialized")) {
+          initSizing(el);
+
+          elementData(el, "initialized", true);
+          if (bindingDef.initialize) {
+            var rect = el.getBoundingClientRect();
+            var result = bindingDef.initialize(el, rect.width, rect.height);
+            elementData(el, "init_result", result);
+          }
+        }
+        bindingDef.renderValue(el, data.x, elementData(el, "init_result"));
+        evalAndRun(data.jsHooks.render, elementData(el, "init_result"), [el, data.x]);
+      };
+
+      // Only override resize if bindingDef implements it
+      if (bindingDef.resize) {
+        shinyBinding.resize = function(el, width, height) {
+          // Shiny can call resize before initialize/renderValue have been
+          // called, which doesn't make sense for widgets.
+          if (elementData(el, "initialized")) {
+            bindingDef.resize(el, width, height, elementData(el, "init_result"));
+          }
+        };
+      }
+
+      Shiny.outputBindings.register(shinyBinding, bindingDef.name);
+    }
+  };
+
+  var scheduleStaticRenderTimerId = null;
+  function scheduleStaticRender() {
+    if (!scheduleStaticRenderTimerId) {
+      scheduleStaticRenderTimerId = setTimeout(function() {
+        scheduleStaticRenderTimerId = null;
+        window.HTMLWidgets.staticRender();
+      }, 1);
+    }
+  }
+
+  // Render static widgets after the document finishes loading
+  // Statically render all elements that are of this widget's class
+  window.HTMLWidgets.staticRender = function() {
+    var bindings = window.HTMLWidgets.widgets || [];
+    forEach(bindings, function(binding) {
+      var matches = binding.find(document.documentElement);
+      forEach(matches, function(el) {
+        var sizeObj = initSizing(el, binding);
+
+        var getSize = function(el) {
+          if (sizeObj) {
+            return {w: sizeObj.getWidth(), h: sizeObj.getHeight()}
+          } else {
+            var rect = el.getBoundingClientRect();
+            return {w: rect.width, h: rect.height}
+          }
+        };
+
+        if (hasClass(el, "html-widget-static-bound"))
+          return;
+        el.className = el.className + " html-widget-static-bound";
+
+        var initResult;
+        if (binding.initialize) {
+          var size = getSize(el);
+          initResult = binding.initialize(el, size.w, size.h);
+          elementData(el, "init_result", initResult);
+        }
+
+        if (binding.resize) {
+          var lastSize = getSize(el);
+          var resizeHandler = function(e) {
+            var size = getSize(el);
+            if (size.w === 0 && size.h === 0)
+              return;
+            if (size.w === lastSize.w && size.h === lastSize.h)
+              return;
+            lastSize = size;
+            binding.resize(el, size.w, size.h, initResult);
+          };
+
+          on(window, "resize", resizeHandler);
+
+          // This is needed for cases where we're running in a Shiny
+          // app, but the widget itself is not a Shiny output, but
+          // rather a simple static widget. One example of this is
+          // an rmarkdown document that has runtime:shiny and widget
+          // that isn't in a render function. Shiny only knows to
+          // call resize handlers for Shiny outputs, not for static
+          // widgets, so we do it ourselves.
+          if (window.jQuery) {
+            window.jQuery(document).on(
+              "shown.htmlwidgets shown.bs.tab.htmlwidgets shown.bs.collapse.htmlwidgets",
+              resizeHandler
+            );
+            window.jQuery(document).on(
+              "hidden.htmlwidgets hidden.bs.tab.htmlwidgets hidden.bs.collapse.htmlwidgets",
+              resizeHandler
+            );
+          }
+
+          // This is needed for the specific case of ioslides, which
+          // flips slides between display:none and display:block.
+          // Ideally we would not have to have ioslide-specific code
+          // here, but rather have ioslides raise a generic event,
+          // but the rmarkdown package just went to CRAN so the
+          // window to getting that fixed may be long.
+          if (window.addEventListener) {
+            // It's OK to limit this to window.addEventListener
+            // browsers because ioslides itself only supports
+            // such browsers.
+            on(document, "slideenter", resizeHandler);
+            on(document, "slideleave", resizeHandler);
+          }
+        }
+
+        var scriptData = document.querySelector("script[data-for='" + el.id + "'][type='application/json']");
+        if (scriptData) {
+          var data = JSON.parse(scriptData.textContent || scriptData.text);
+          // Resolve strings marked as javascript literals to objects
+          if (!(data.evals instanceof Array)) data.evals = [data.evals];
+          for (var k = 0; data.evals && k < data.evals.length; k++) {
+            window.HTMLWidgets.evaluateStringMember(data.x, data.evals[k]);
+          }
+          binding.renderValue(el, data.x, initResult);
+          evalAndRun(data.jsHooks.render, initResult, [el, data.x]);
+        }
+      });
+    });
+
+    invokePostRenderHandlers();
+  }
+
+
+  function has_jQuery3() {
+    if (!window.jQuery) {
+      return false;
+    }
+    var $version = window.jQuery.fn.jquery;
+    var $major_version = parseInt($version.split(".")[0]);
+    return $major_version >= 3;
+  }
+
+  /*
+  / Shiny 1.4 bumped jQuery from 1.x to 3.x which means jQuery's
+  / on-ready handler (i.e., $(fn)) is now asyncronous (i.e., it now
+  / really means $(setTimeout(fn)).
+  / https://jquery.com/upgrade-guide/3.0/#breaking-change-document-ready-handlers-are-now-asynchronous
+  /
+  / Since Shiny uses $() to schedule initShiny, shiny>=1.4 calls initShiny
+  / one tick later than it did before, which means staticRender() is
+  / called renderValue() earlier than (advanced) widget authors might be expecting.
+  / https://github.com/rstudio/shiny/issues/2630
+  /
+  / For a concrete example, leaflet has some methods (e.g., updateBounds)
+  / which reference Shiny methods registered in initShiny (e.g., setInputValue).
+  / Since leaflet is privy to this life-cycle, it knows to use setTimeout() to
+  / delay execution of those methods (until Shiny methods are ready)
+  / https://github.com/rstudio/leaflet/blob/18ec981/javascript/src/index.js#L266-L268
+  /
+  / Ideally widget authors wouldn't need to use this setTimeout() hack that
+  / leaflet uses to call Shiny methods on a staticRender(). In the long run,
+  / the logic initShiny should be broken up so that method registration happens
+  / right away, but binding happens later.
+  */
+  function maybeStaticRenderLater() {
+    if (shinyMode && has_jQuery3()) {
+      window.jQuery(window.HTMLWidgets.staticRender);
+    } else {
+      window.HTMLWidgets.staticRender();
+    }
+  }
+
+  if (document.addEventListener) {
+    document.addEventListener("DOMContentLoaded", function() {
+      document.removeEventListener("DOMContentLoaded", arguments.callee, false);
+      maybeStaticRenderLater();
+    }, false);
+  } else if (document.attachEvent) {
+    document.attachEvent("onreadystatechange", function() {
+      if (document.readyState === "complete") {
+        document.detachEvent("onreadystatechange", arguments.callee);
+        maybeStaticRenderLater();
+      }
+    });
+  }
+
+
+  window.HTMLWidgets.getAttachmentUrl = function(depname, key) {
+    // If no key, default to the first item
+    if (typeof(key) === "undefined")
+      key = 1;
+
+    var link = document.getElementById(depname + "-" + key + "-attachment");
+    if (!link) {
+      throw new Error("Attachment " + depname + "/" + key + " not found in document");
+    }
+    return link.getAttribute("href");
+  };
+
+  window.HTMLWidgets.dataframeToD3 = function(df) {
+    var names = [];
+    var length;
+    for (var name in df) {
+        if (df.hasOwnProperty(name))
+            names.push(name);
+        if (typeof(df[name]) !== "object" || typeof(df[name].length) === "undefined") {
+            throw new Error("All fields must be arrays");
+        } else if (typeof(length) !== "undefined" && length !== df[name].length) {
+            throw new Error("All fields must be arrays of the same length");
+        }
+        length = df[name].length;
+    }
+    var results = [];
+    var item;
+    for (var row = 0; row < length; row++) {
+        item = {};
+        for (var col = 0; col < names.length; col++) {
+            item[names[col]] = df[names[col]][row];
+        }
+        results.push(item);
+    }
+    return results;
+  };
+
+  window.HTMLWidgets.transposeArray2D = function(array) {
+      if (array.length === 0) return array;
+      var newArray = array[0].map(function(col, i) {
+          return array.map(function(row) {
+              return row[i]
+          })
+      });
+      return newArray;
+  };
+  // Split value at splitChar, but allow splitChar to be escaped
+  // using escapeChar. Any other characters escaped by escapeChar
+  // will be included as usual (including escapeChar itself).
+  function splitWithEscape(value, splitChar, escapeChar) {
+    var results = [];
+    var escapeMode = false;
+    var currentResult = "";
+    for (var pos = 0; pos < value.length; pos++) {
+      if (!escapeMode) {
+        if (value[pos] === splitChar) {
+          results.push(currentResult);
+          currentResult = "";
+        } else if (value[pos] === escapeChar) {
+          escapeMode = true;
+        } else {
+          currentResult += value[pos];
+        }
+      } else {
+        currentResult += value[pos];
+        escapeMode = false;
+      }
+    }
+    if (currentResult !== "") {
+      results.push(currentResult);
+    }
+    return results;
+  }
+  // Function authored by Yihui/JJ Allaire
+  window.HTMLWidgets.evaluateStringMember = function(o, member) {
+    var parts = splitWithEscape(member, '.', '\\');
+    for (var i = 0, l = parts.length; i < l; i++) {
+      var part = parts[i];
+      // part may be a character or 'numeric' member name
+      if (o !== null && typeof o === "object" && part in o) {
+        if (i == (l - 1)) { // if we are at the end of the line then evalulate
+          if (typeof o[part] === "string")
+            o[part] = tryEval(o[part]);
+        } else { // otherwise continue to next embedded object
+          o = o[part];
+        }
+      }
+    }
+  };
+
+  // Retrieve the HTMLWidget instance (i.e. the return value of an
+  // HTMLWidget binding's initialize() or factory() function)
+  // associated with an element, or null if none.
+  window.HTMLWidgets.getInstance = function(el) {
+    return elementData(el, "init_result");
+  };
+
+  // Finds the first element in the scope that matches the selector,
+  // and returns the HTMLWidget instance (i.e. the return value of
+  // an HTMLWidget binding's initialize() or factory() function)
+  // associated with that element, if any. If no element matches the
+  // selector, or the first matching element has no HTMLWidget
+  // instance associated with it, then null is returned.
+  //
+  // The scope argument is optional, and defaults to window.document.
+  window.HTMLWidgets.find = function(scope, selector) {
+    if (arguments.length == 1) {
+      selector = scope;
+      scope = document;
+    }
+
+    var el = scope.querySelector(selector);
+    if (el === null) {
+      return null;
+    } else {
+      return window.HTMLWidgets.getInstance(el);
+    }
+  };
+
+  // Finds all elements in the scope that match the selector, and
+  // returns the HTMLWidget instances (i.e. the return values of
+  // an HTMLWidget binding's initialize() or factory() function)
+  // associated with the elements, in an array. If elements that
+  // match the selector don't have an associated HTMLWidget
+  // instance, the returned array will contain nulls.
+  //
+  // The scope argument is optional, and defaults to window.document.
+  window.HTMLWidgets.findAll = function(scope, selector) {
+    if (arguments.length == 1) {
+      selector = scope;
+      scope = document;
+    }
+
+    var nodes = scope.querySelectorAll(selector);
+    var results = [];
+    for (var i = 0; i < nodes.length; i++) {
+      results.push(window.HTMLWidgets.getInstance(nodes[i]));
+    }
+    return results;
+  };
+
+  var postRenderHandlers = [];
+  function invokePostRenderHandlers() {
+    while (postRenderHandlers.length) {
+      var handler = postRenderHandlers.shift();
+      if (handler) {
+        handler();
+      }
+    }
+  }
+
+  // Register the given callback function to be invoked after the
+  // next time static widgets are rendered.
+  window.HTMLWidgets.addPostRenderHandler = function(callback) {
+    postRenderHandlers.push(callback);
+  };
+
+  // Takes a new-style instance-bound definition, and returns an
+  // old-style class-bound definition. This saves us from having
+  // to rewrite all the logic in this file to accomodate both
+  // types of definitions.
+  function createLegacyDefinitionAdapter(defn) {
+    var result = {
+      name: defn.name,
+      type: defn.type,
+      initialize: function(el, width, height) {
+        return defn.factory(el, width, height);
+      },
+      renderValue: function(el, x, instance) {
+        return instance.renderValue(x);
+      },
+      resize: function(el, width, height, instance) {
+        return instance.resize(width, height);
+      }
+    };
+
+    if (defn.find)
+      result.find = defn.find;
+    if (defn.renderError)
+      result.renderError = defn.renderError;
+    if (defn.clearError)
+      result.clearError = defn.clearError;
+
+    return result;
+  }
+})();
+</script>
+<style type="text/css">#wcLabel {position: absolute;border: 2px solid #fff;box-shadow: 0 0 4px 0 #008;padding: 2px;pointer-events: none; }#wcSpan {position: absolute;top: 100%;left: 0;background-color: rgba(255, 255, 255, 0.8);color: #333;margin-top: 6px;padding: 0 0.5em;border-radius: 0.5em;white-space: nowrap; }</style>
+<script>/*!
+ * wordcloud2.js
+ * http://timdream.org/wordcloud2.js/
+ *
+ * Copyright 2011 - 2013 Tim Chien
+ * Released under the MIT license
+ */
+
+'use strict';
+
+// setImmediate
+if (!window.setImmediate) {
+  window.setImmediate = (function setupSetImmediate() {
+    return window.msSetImmediate ||
+    window.webkitSetImmediate ||
+    window.mozSetImmediate ||
+    window.oSetImmediate ||
+    (function setupSetZeroTimeout() {
+      if (!window.postMessage || !window.addEventListener) {
+        return null;
+      }
+
+      var callbacks = [undefined];
+      var message = 'zero-timeout-message';
+
+      // Like setTimeout, but only takes a function argument.  There's
+      // no time argument (always zero) and no arguments (you have to
+      // use a closure).
+      var setZeroTimeout = function setZeroTimeout(callback) {
+        var id = callbacks.length;
+        callbacks.push(callback);
+        window.postMessage(message + id.toString(36), '*');
+
+        return id;
+      };
+
+      window.addEventListener('message', function setZeroTimeoutMessage(evt) {
+        // Skipping checking event source, retarded IE confused this window
+        // object with another in the presence of iframe
+        if (typeof evt.data !== 'string' ||
+            evt.data.substr(0, message.length) !== message/* ||
+            evt.source !== window */) {
+          return;
+        }
+
+        evt.stopImmediatePropagation();
+
+        var id = parseInt(evt.data.substr(message.length), 36);
+        if (!callbacks[id]) {
+          return;
+        }
+
+        callbacks[id]();
+        callbacks[id] = undefined;
+      }, true);
+
+      /* specify clearImmediate() here since we need the scope */
+      window.clearImmediate = function clearZeroTimeout(id) {
+        if (!callbacks[id]) {
+          return;
+        }
+
+        callbacks[id] = undefined;
+      };
+
+      return setZeroTimeout;
+    })() ||
+    // fallback
+    function setImmediateFallback(fn) {
+      window.setTimeout(fn, 0);
+    };
+  })();
+}
+
+if (!window.clearImmediate) {
+  window.clearImmediate = (function setupClearImmediate() {
+    return window.msClearImmediate ||
+    window.webkitClearImmediate ||
+    window.mozClearImmediate ||
+    window.oClearImmediate ||
+    // "clearZeroTimeout" is implement on the previous block ||
+    // fallback
+    function clearImmediateFallback(timer) {
+      window.clearTimeout(timer);
+    };
+  })();
+}
+
+(function(global) {
+
+  // Check if WordCloud can run on this browser
+  var isSupported = (function isSupported() {
+    var canvas = document.createElement('canvas');
+    if (!canvas || !canvas.getContext) {
+      return false;
+    }
+
+    var ctx = canvas.getContext('2d');
+    if (!ctx.getImageData) {
+      return false;
+    }
+    if (!ctx.fillText) {
+      return false;
+    }
+
+    if (!Array.prototype.some) {
+      return false;
+    }
+    if (!Array.prototype.push) {
+      return false;
+    }
+
+    return true;
+  }());
+
+  // Find out if the browser impose minium font size by
+  // drawing small texts on a canvas and measure it's width.
+  var minFontSize = (function getMinFontSize() {
+    if (!isSupported) {
+      return;
+    }
+
+    var ctx = document.createElement('canvas').getContext('2d');
+
+    // start from 20
+    var size = 20;
+
+    // two sizes to measure
+    var hanWidth, mWidth;
+
+    while (size) {
+      ctx.font = size.toString(10) + 'px sans-serif';
+      if ((ctx.measureText('\uFF37').width === hanWidth) &&
+          (ctx.measureText('m').width) === mWidth) {
+        return (size + 1);
+      }
+
+      hanWidth = ctx.measureText('\uFF37').width;
+      mWidth = ctx.measureText('m').width;
+
+      size--;
+    }
+
+    return 0;
+  })();
+
+  // Based on http://jsfromhell.com/array/shuffle
+  var shuffleArray = function shuffleArray(arr) {
+    for (var j, x, i = arr.length; i;
+      j = Math.floor(Math.random() * i),
+      x = arr[--i], arr[i] = arr[j],
+      arr[j] = x) {}
+    return arr;
+  };
+
+  var WordCloud = function WordCloud(elements, options) {
+    if (!isSupported) {
+      return;
+    }
+
+    if (!Array.isArray(elements)) {
+      elements = [elements];
+    }
+
+    elements.forEach(function(el, i) {
+      if (typeof el === 'string') {
+        elements[i] = document.getElementById(el);
+        if (!elements[i]) {
+          throw 'The element id specified is not found.';
+        }
+      } else if (!el.tagName && !el.appendChild) {
+        throw 'You must pass valid HTML elements, or ID of the element.';
+      }
+    });
+
+    /* Default values to be overwritten by options object */
+    var settings = {
+      list: [],
+      fontFamily: '"Trebuchet MS", "Heiti TC", "微軟正黑體", ' +
+                  '"Arial Unicode MS", "Droid Fallback Sans", sans-serif',
+      fontWeight: 'normal',
+      color: 'random-dark',
+      minSize: 0, // 0 to disable
+      weightFactor: 1,
+      clearCanvas: true,
+      backgroundColor: '#fff',  // opaque white = rgba(255, 255, 255, 1)
+
+      gridSize: 8,
+      origin: null,
+
+      drawMask: false,
+      maskColor: 'rgba(255,0,0,0.3)',
+      maskGapWidth: 0.3,
+
+      wait: 0,
+      abortThreshold: 0, // disabled
+      abort: function noop() {},
+
+      minRotation: - Math.PI / 2,
+      maxRotation: Math.PI / 2,
+
+      shuffle: true,
+      rotateRatio: 0.1,
+
+      shape: 'circle',
+      ellipticity: 0.65,
+
+      classes: null,
+
+      hover: null,
+      click: null
+    };
+
+    if (options) {
+      for (var key in options) {
+        if (key in settings) {
+          settings[key] = options[key];
+        }
+      }
+    }
+
+    /* Convert weightFactor into a function */
+    if (typeof settings.weightFactor !== 'function') {
+      var factor = settings.weightFactor;
+      settings.weightFactor = function weightFactor(pt) {
+        return pt * factor; //in px
+      };
+    }
+
+    /* Convert shape into a function */
+    if (typeof settings.shape !== 'function') {
+      switch (settings.shape) {
+        case 'circle':
+        /* falls through */
+        default:
+          // 'circle' is the default and a shortcut in the code loop.
+          settings.shape = 'circle';
+          break;
+
+        case 'cardioid':
+          settings.shape = function shapeCardioid(theta) {
+            return 1 - Math.sin(theta);
+          };
+          break;
+
+        /*
+
+        To work out an X-gon, one has to calculate "m",
+        where 1/(cos(2*PI/X)+m*sin(2*PI/X)) = 1/(cos(0)+m*sin(0))
+        http://www.wolframalpha.com/input/?i=1%2F%28cos%282*PI%2FX%29%2Bm*sin%28
+        2*PI%2FX%29%29+%3D+1%2F%28cos%280%29%2Bm*sin%280%29%29
+
+        Copy the solution into polar equation r = 1/(cos(t') + m*sin(t'))
+        where t' equals to mod(t, 2PI/X);
+
+        */
+
+        case 'diamond':
+        case 'square':
+          // http://www.wolframalpha.com/input/?i=plot+r+%3D+1%2F%28cos%28mod+
+          // %28t%2C+PI%2F2%29%29%2Bsin%28mod+%28t%2C+PI%2F2%29%29%29%2C+t+%3D
+          // +0+..+2*PI
+          settings.shape = function shapeSquare(theta) {
+            var thetaPrime = theta % (2 * Math.PI / 4);
+            return 1 / (Math.cos(thetaPrime) + Math.sin(thetaPrime));
+          };
+          break;
+
+        case 'triangle-forward':
+          // http://www.wolframalpha.com/input/?i=plot+r+%3D+1%2F%28cos%28mod+
+          // %28t%2C+2*PI%2F3%29%29%2Bsqrt%283%29sin%28mod+%28t%2C+2*PI%2F3%29
+          // %29%29%2C+t+%3D+0+..+2*PI
+          settings.shape = function shapeTriangle(theta) {
+            var thetaPrime = theta % (2 * Math.PI / 3);
+            return 1 / (Math.cos(thetaPrime) +
+                        Math.sqrt(3) * Math.sin(thetaPrime));
+          };
+          break;
+
+        case 'triangle':
+        case 'triangle-upright':
+          settings.shape = function shapeTriangle(theta) {
+            var thetaPrime = (theta + Math.PI * 3 / 2) % (2 * Math.PI / 3);
+            return 1 / (Math.cos(thetaPrime) +
+                        Math.sqrt(3) * Math.sin(thetaPrime));
+          };
+          break;
+
+        case 'pentagon':
+          settings.shape = function shapePentagon(theta) {
+            var thetaPrime = (theta + 0.955) % (2 * Math.PI / 5);
+            return 1 / (Math.cos(thetaPrime) +
+                        0.726543 * Math.sin(thetaPrime));
+          };
+          break;
+
+        case 'star':
+          settings.shape = function shapeStar(theta) {
+            var thetaPrime = (theta + 0.955) % (2 * Math.PI / 10);
+            if ((theta + 0.955) % (2 * Math.PI / 5) - (2 * Math.PI / 10) >= 0) {
+              return 1 / (Math.cos((2 * Math.PI / 10) - thetaPrime) +
+                          3.07768 * Math.sin((2 * Math.PI / 10) - thetaPrime));
+            } else {
+              return 1 / (Math.cos(thetaPrime) +
+                          3.07768 * Math.sin(thetaPrime));
+            }
+          };
+          break;
+      }
+    }
+
+    /* Make sure gridSize is a whole number and is not smaller than 4px */
+    settings.gridSize = Math.max(Math.floor(settings.gridSize), 4);
+
+    /* shorthand */
+    var g = settings.gridSize;
+    var maskRectWidth = g - settings.maskGapWidth;
+
+    /* normalize rotation settings */
+    var rotationRange = Math.abs(settings.maxRotation - settings.minRotation);
+    var minRotation = Math.min(settings.maxRotation, settings.minRotation);
+
+    /* information/object available to all functions, set when start() */
+    var grid, // 2d array containing filling information
+      ngx, ngy, // width and height of the grid
+      center, // position of the center of the cloud
+      maxRadius;
+
+    /* timestamp for measuring each putWord() action */
+    var escapeTime;
+
+    /* function for getting the color of the text */
+    var getTextColor;
+    function random_hsl_color(min, max) {
+      return 'hsl(' +
+        (Math.random() * 360).toFixed() + ',' +
+        (Math.random() * 30 + 70).toFixed() + '%,' +
+        (Math.random() * (max - min) + min).toFixed() + '%)';
+    }
+    switch (settings.color) {
+      case 'random-dark':
+        getTextColor = function getRandomDarkColor() {
+          return random_hsl_color(10, 50);
+        };
+        break;
+
+      case 'random-light':
+        getTextColor = function getRandomLightColor() {
+          return random_hsl_color(50, 90);
+        };
+        break;
+
+      default:
+        if (typeof settings.color === 'function') {
+          getTextColor = settings.color;
+        }
+        break;
+    }
+
+    /* function for getting the classes of the text */
+    var getTextClasses = null;
+    if (typeof settings.classes === 'function') {
+      getTextClasses = settings.classes;
+    }
+
+    /* Interactive */
+    var interactive = false;
+    var infoGrid = [];
+    var hovered;
+
+    var getInfoGridFromMouseTouchEvent =
+    function getInfoGridFromMouseTouchEvent(evt) {
+      var canvas = evt.currentTarget;
+      var rect = canvas.getBoundingClientRect();
+      var clientX;
+      var clientY;
+      /** Detect if touches are available */
+      if (evt.touches) {
+        clientX = evt.touches[0].clientX;
+        clientY = evt.touches[0].clientY;
+      } else {
+        clientX = evt.clientX;
+        clientY = evt.clientY;
+      }
+      var eventX = clientX - rect.left;
+      var eventY = clientY - rect.top;
+
+      var x = Math.floor(eventX * ((canvas.width / rect.width) || 1) / g);
+      var y = Math.floor(eventY * ((canvas.height / rect.height) || 1) / g);
+
+      return infoGrid[x][y];
+    };
+
+    var wordcloudhover = function wordcloudhover(evt) {
+      var info = getInfoGridFromMouseTouchEvent(evt);
+
+      if (hovered === info) {
+        return;
+      }
+
+      hovered = info;
+      if (!info) {
+        settings.hover(undefined, undefined, evt);
+
+        return;
+      }
+
+      settings.hover(info.item, info.dimension, evt);
+
+    };
+
+    var wordcloudclick = function wordcloudclick(evt) {
+      var info = getInfoGridFromMouseTouchEvent(evt);
+      if (!info) {
+        return;
+      }
+
+      settings.click(info.item, info.dimension, evt);
+      evt.preventDefault();
+    };
+
+    /* Get points on the grid for a given radius away from the center */
+    var pointsAtRadius = [];
+    var getPointsAtRadius = function getPointsAtRadius(radius) {
+      if (pointsAtRadius[radius]) {
+        return pointsAtRadius[radius];
+      }
+
+      // Look for these number of points on each radius
+      var T = radius * 8;
+
+      // Getting all the points at this radius
+      var t = T;
+      var points = [];
+
+      if (radius === 0) {
+        points.push([center[0], center[1], 0]);
+      }
+
+      while (t--) {
+        // distort the radius to put the cloud in shape
+        var rx = 1;
+        if (settings.shape !== 'circle') {
+          rx = settings.shape(t / T * 2 * Math.PI); // 0 to 1
+        }
+
+        // Push [x, y, t]; t is used solely for getTextColor()
+        points.push([
+          center[0] + radius * rx * Math.cos(-t / T * 2 * Math.PI),
+          center[1] + radius * rx * Math.sin(-t / T * 2 * Math.PI) *
+            settings.ellipticity,
+          t / T * 2 * Math.PI]);
+      }
+
+      pointsAtRadius[radius] = points;
+      return points;
+    };
+
+    /* Return true if we had spent too much time */
+    var exceedTime = function exceedTime() {
+      return ((settings.abortThreshold > 0) &&
+        ((new Date()).getTime() - escapeTime > settings.abortThreshold));
+    };
+
+    /* Get the deg of rotation according to settings, and luck. */
+    var getRotateDeg = function getRotateDeg() {
+      if (settings.rotateRatio === 0) {
+        return 0;
+      }
+
+      if (Math.random() > settings.rotateRatio) {
+        return 0;
+      }
+
+      if (rotationRange === 0) {
+        return minRotation;
+      }
+
+      return minRotation + Math.random() * rotationRange;
+    };
+
+    var getTextInfo = function getTextInfo(word, weight, rotateDeg) {
+      // calculate the acutal font size
+      // fontSize === 0 means weightFactor function wants the text skipped,
+      // and size < minSize means we cannot draw the text.
+      var debug = false;
+      var fontSize = settings.weightFactor(weight);
+      if (fontSize <= settings.minSize) {
+        return false;
+      }
+
+      // Scale factor here is to make sure fillText is not limited by
+      // the minium font size set by browser.
+      // It will always be 1 or 2n.
+      var mu = 1;
+      if (fontSize < minFontSize) {
+        mu = (function calculateScaleFactor() {
+          var mu = 2;
+          while (mu * fontSize < minFontSize) {
+            mu += 2;
+          }
+          return mu;
+        })();
+      }
+
+      var fcanvas = document.createElement('canvas');
+      var fctx = fcanvas.getContext('2d', { willReadFrequently: true });
+
+      fctx.font = settings.fontWeight + ' ' +
+        (fontSize * mu).toString(10) + 'px ' + settings.fontFamily;
+
+      // Estimate the dimension of the text with measureText().
+      var fw = fctx.measureText(word).width / mu;
+      var fh = Math.max(fontSize * mu,
+                        fctx.measureText('m').width,
+                        fctx.measureText('\uFF37').width) / mu;
+
+      // Create a boundary box that is larger than our estimates,
+      // so text don't get cut of (it sill might)
+      var boxWidth = fw + fh * 2;
+      var boxHeight = fh * 3;
+      var fgw = Math.ceil(boxWidth / g);
+      var fgh = Math.ceil(boxHeight / g);
+      boxWidth = fgw * g;
+      boxHeight = fgh * g;
+
+      // Calculate the proper offsets to make the text centered at
+      // the preferred position.
+
+      // This is simply half of the width.
+      var fillTextOffsetX = - fw / 2;
+      // Instead of moving the box to the exact middle of the preferred
+      // position, for Y-offset we move 0.4 instead, so Latin alphabets look
+      // vertical centered.
+      var fillTextOffsetY = - fh * 0.4;
+
+      // Calculate the actual dimension of the canvas, considering the rotation.
+      var cgh = Math.ceil((boxWidth * Math.abs(Math.sin(rotateDeg)) +
+                           boxHeight * Math.abs(Math.cos(rotateDeg))) / g);
+      var cgw = Math.ceil((boxWidth * Math.abs(Math.cos(rotateDeg)) +
+                           boxHeight * Math.abs(Math.sin(rotateDeg))) / g);
+      var width = cgw * g;
+      var height = cgh * g;
+
+      fcanvas.setAttribute('width', width);
+      fcanvas.setAttribute('height', height);
+
+      if (debug) {
+        // Attach fcanvas to the DOM
+        document.body.appendChild(fcanvas);
+        // Save it's state so that we could restore and draw the grid correctly.
+        fctx.save();
+      }
+
+      // Scale the canvas with |mu|.
+      fctx.scale(1 / mu, 1 / mu);
+      fctx.translate(width * mu / 2, height * mu / 2);
+      fctx.rotate(- rotateDeg);
+
+      // Once the width/height is set, ctx info will be reset.
+      // Set it again here.
+      fctx.font = settings.fontWeight + ' ' +
+        (fontSize * mu).toString(10) + 'px ' + settings.fontFamily;
+
+      // Fill the text into the fcanvas.
+      // XXX: We cannot because textBaseline = 'top' here because
+      // Firefox and Chrome uses different default line-height for canvas.
+      // Please read https://bugzil.la/737852#c6.
+      // Here, we use textBaseline = 'middle' and draw the text at exactly
+      // 0.5 * fontSize lower.
+      fctx.fillStyle = '#000';
+      fctx.textBaseline = 'middle';
+      fctx.fillText(word, fillTextOffsetX * mu,
+                    (fillTextOffsetY + fontSize * 0.5) * mu);
+
+      // Get the pixels of the text
+      var imageData = fctx.getImageData(0, 0, width, height).data;
+
+      if (exceedTime()) {
+        return false;
+      }
+
+      if (debug) {
+        // Draw the box of the original estimation
+        fctx.strokeRect(fillTextOffsetX * mu,
+                        fillTextOffsetY, fw * mu, fh * mu);
+        fctx.restore();
+      }
+
+      // Read the pixels and save the information to the occupied array
+      var occupied = [];
+      var gx = cgw, gy, x, y;
+      var bounds = [cgh / 2, cgw / 2, cgh / 2, cgw / 2];
+      while (gx--) {
+        gy = cgh;
+        while (gy--) {
+          y = g;
+          singleGridLoop: {
+            while (y--) {
+              x = g;
+              while (x--) {
+                if (imageData[((gy * g + y) * width +
+                               (gx * g + x)) * 4 + 3]) {
+                  occupied.push([gx, gy]);
+
+                  if (gx < bounds[3]) {
+                    bounds[3] = gx;
+                  }
+                  if (gx > bounds[1]) {
+                    bounds[1] = gx;
+                  }
+                  if (gy < bounds[0]) {
+                    bounds[0] = gy;
+                  }
+                  if (gy > bounds[2]) {
+                    bounds[2] = gy;
+                  }
+
+                  if (debug) {
+                    fctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                    fctx.fillRect(gx * g, gy * g, g - 0.5, g - 0.5);
+                  }
+                  break singleGridLoop;
+                }
+              }
+            }
+            if (debug) {
+              fctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+              fctx.fillRect(gx * g, gy * g, g - 0.5, g - 0.5);
+            }
+          }
+        }
+      }
+
+      if (debug) {
+        fctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+        fctx.fillRect(bounds[3] * g,
+                      bounds[0] * g,
+                      (bounds[1] - bounds[3] + 1) * g,
+                      (bounds[2] - bounds[0] + 1) * g);
+      }
+
+      // Return information needed to create the text on the real canvas
+      return {
+        mu: mu,
+        occupied: occupied,
+        bounds: bounds,
+        gw: cgw,
+        gh: cgh,
+        fillTextOffsetX: fillTextOffsetX,
+        fillTextOffsetY: fillTextOffsetY,
+        fillTextWidth: fw,
+        fillTextHeight: fh,
+        fontSize: fontSize
+      };
+    };
+
+    /* Determine if there is room available in the given dimension */
+    var canFitText = function canFitText(gx, gy, gw, gh, occupied) {
+      // Go through the occupied points,
+      // return false if the space is not available.
+      var i = occupied.length;
+      while (i--) {
+        var px = gx + occupied[i][0];
+        var py = gy + occupied[i][1];
+
+        if (px >= ngx || py >= ngy || px < 0 || py < 0 || !grid[px][py]) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    /* Actually draw the text on the grid */
+    var drawText = function drawText(gx, gy, info, word, weight,
+                                     distance, theta, rotateDeg, attributes) {
+
+      var fontSize = info.fontSize;
+      var color;
+      if (getTextColor) {
+        color = getTextColor(word, weight, fontSize, distance, theta);
+      } else if (settings.color instanceof Array) {
+        color = settings.color.shift() || 'black'; // pass a array in setting, default 'black'
+      } else {
+        color = settings.color;
+      }
+
+      var classes;
+      if (getTextClasses) {
+        classes = getTextClasses(word, weight, fontSize, distance, theta);
+      } else {
+        classes = settings.classes;
+      }
+
+      var dimension;
+      var bounds = info.bounds;
+      dimension = {
+        x: (gx + bounds[3]) * g,
+        y: (gy + bounds[0]) * g,
+        w: (bounds[1] - bounds[3] + 1) * g,
+        h: (bounds[2] - bounds[0] + 1) * g
+      };
+
+      elements.forEach(function(el) {
+        if (el.getContext) {
+          var ctx = el.getContext('2d');
+          var mu = info.mu;
+
+          // Save the current state before messing it
+          ctx.save();
+          ctx.scale(1 / mu, 1 / mu);
+
+          ctx.font = settings.fontWeight + ' ' +
+                     (fontSize * mu).toString(10) + 'px ' + settings.fontFamily;
+          ctx.fillStyle = color;
+
+          // Translate the canvas position to the origin coordinate of where
+          // the text should be put.
+          ctx.translate((gx + info.gw / 2) * g * mu,
+                        (gy + info.gh / 2) * g * mu);
+
+          if (rotateDeg !== 0) {
+            ctx.rotate(- rotateDeg);
+          }
+
+          // Finally, fill the text.
+
+          // XXX: We cannot because textBaseline = 'top' here because
+          // Firefox and Chrome uses different default line-height for canvas.
+          // Please read https://bugzil.la/737852#c6.
+          // Here, we use textBaseline = 'middle' and draw the text at exactly
+          // 0.5 * fontSize lower.
+          ctx.textBaseline = 'middle';
+          ctx.fillText(word, info.fillTextOffsetX * mu,
+                             (info.fillTextOffsetY + fontSize * 0.5) * mu);
+
+          // The below box is always matches how <span>s are positioned
+          /* ctx.strokeRect(info.fillTextOffsetX, info.fillTextOffsetY,
+            info.fillTextWidth, info.fillTextHeight); */
+
+          // Restore the state.
+          ctx.restore();
+        } else {
+          // drawText on DIV element
+          var span = document.createElement('span');
+          var transformRule = '';
+          transformRule = 'rotate(' + (- rotateDeg / Math.PI * 180) + 'deg) ';
+          if (info.mu !== 1) {
+            transformRule +=
+              'translateX(-' + (info.fillTextWidth / 4) + 'px) ' +
+              'scale(' + (1 / info.mu) + ')';
+          }
+          var styleRules = {
+            'position': 'absolute',
+            'display': 'block',
+            'font': settings.fontWeight + ' ' +
+                    (fontSize * info.mu) + 'px ' + settings.fontFamily,
+            'left': ((gx + info.gw / 2) * g + info.fillTextOffsetX) + 'px',
+            'top': ((gy + info.gh / 2) * g + info.fillTextOffsetY) + 'px',
+            'width': info.fillTextWidth + 'px',
+            'height': info.fillTextHeight + 'px',
+            'lineHeight': fontSize + 'px',
+            'whiteSpace': 'nowrap',
+            'transform': transformRule,
+            'webkitTransform': transformRule,
+            'msTransform': transformRule,
+            'transformOrigin': '50% 40%',
+            'webkitTransformOrigin': '50% 40%',
+            'msTransformOrigin': '50% 40%'
+          };
+          if (color) {
+            styleRules.color = color;
+          }
+          span.textContent = word;
+          for (var cssProp in styleRules) {
+            span.style[cssProp] = styleRules[cssProp];
+          }
+          if (attributes) {
+            for (var attribute in attributes) {
+              span.setAttribute(attribute, attributes[attribute]);
+            }
+          }
+          if (classes) {
+            span.className += classes;
+          }
+          el.appendChild(span);
+        }
+      });
+    };
+
+    /* Help function to updateGrid */
+    var fillGridAt = function fillGridAt(x, y, drawMask, dimension, item) {
+      if (x >= ngx || y >= ngy || x < 0 || y < 0) {
+        return;
+      }
+
+      grid[x][y] = false;
+
+      if (drawMask) {
+        var ctx = elements[0].getContext('2d');
+        ctx.fillRect(x * g, y * g, maskRectWidth, maskRectWidth);
+      }
+
+      if (interactive) {
+        infoGrid[x][y] = { item: item, dimension: dimension };
+      }
+    };
+
+    /* Update the filling information of the given space with occupied points.
+       Draw the mask on the canvas if necessary. */
+    var updateGrid = function updateGrid(gx, gy, gw, gh, info, item) {
+      var occupied = info.occupied;
+      var drawMask = settings.drawMask;
+      var ctx;
+      if (drawMask) {
+        ctx = elements[0].getContext('2d');
+        ctx.save();
+        ctx.fillStyle = settings.maskColor;
+      }
+
+      var dimension;
+      if (interactive) {
+        var bounds = info.bounds;
+        dimension = {
+          x: (gx + bounds[3]) * g,
+          y: (gy + bounds[0]) * g,
+          w: (bounds[1] - bounds[3] + 1) * g,
+          h: (bounds[2] - bounds[0] + 1) * g
+        };
+      }
+
+      var i = occupied.length;
+      while (i--) {
+        fillGridAt(gx + occupied[i][0], gy + occupied[i][1],
+                   drawMask, dimension, item);
+      }
+
+      if (drawMask) {
+        ctx.restore();
+      }
+    };
+
+    /* putWord() processes each item on the list,
+       calculate it's size and determine it's position, and actually
+       put it on the canvas. */
+    var putWord = function putWord(item) {
+      var word, weight, attributes;
+      if (Array.isArray(item)) {
+        word = item[0];
+        weight = item[1];
+      } else {
+        word = item.word;
+        weight = item.weight;
+        attributes = item.attributes;
+      }
+      var rotateDeg = getRotateDeg();
+
+      // get info needed to put the text onto the canvas
+      var info = getTextInfo(word, weight, rotateDeg);
+
+      // not getting the info means we shouldn't be drawing this one.
+      if (!info) {
+        return false;
+      }
+
+      if (exceedTime()) {
+        return false;
+      }
+
+      // Skip the loop if we have already know the bounding box of
+      // word is larger than the canvas.
+      var bounds = info.bounds;
+      if ((bounds[1] - bounds[3] + 1) > ngx ||
+        (bounds[2] - bounds[0] + 1) > ngy) {
+        return false;
+      }
+
+      // Determine the position to put the text by
+      // start looking for the nearest points
+      var r = maxRadius + 1;
+
+      var tryToPutWordAtPoint = function(gxy) {
+        var gx = Math.floor(gxy[0] - info.gw / 2);
+        var gy = Math.floor(gxy[1] - info.gh / 2);
+        var gw = info.gw;
+        var gh = info.gh;
+
+        // If we cannot fit the text at this position, return false
+        // and go to the next position.
+        if (!canFitText(gx, gy, gw, gh, info.occupied)) {
+          return false;
+        }
+
+        // Actually put the text on the canvas
+        drawText(gx, gy, info, word, weight,
+                 (maxRadius - r), gxy[2], rotateDeg, attributes);
+
+        // Mark the spaces on the grid as filled
+        updateGrid(gx, gy, gw, gh, info, item);
+
+        // Return true so some() will stop and also return true.
+        return true;
+      };
+
+      while (r--) {
+        var points = getPointsAtRadius(maxRadius - r);
+
+        if (settings.shuffle) {
+          points = [].concat(points);
+          shuffleArray(points);
+        }
+
+        // Try to fit the words by looking at each point.
+        // array.some() will stop and return true
+        // when putWordAtPoint() returns true.
+        // If all the points returns false, array.some() returns false.
+        var drawn = points.some(tryToPutWordAtPoint);
+
+        if (drawn) {
+          // leave putWord() and return true
+          return true;
+        }
+      }
+      // we tried all distances but text won't fit, return false
+      return false;
+    };
+
+    /* Send DOM event to all elements. Will stop sending event and return
+       if the previous one is canceled (for cancelable events). */
+    var sendEvent = function sendEvent(type, cancelable, detail) {
+      if (cancelable) {
+        return !elements.some(function(el) {
+          var evt = document.createEvent('CustomEvent');
+          evt.initCustomEvent(type, true, cancelable, detail || {});
+          return !el.dispatchEvent(evt);
+        }, this);
+      } else {
+        elements.forEach(function(el) {
+          var evt = document.createEvent('CustomEvent');
+          evt.initCustomEvent(type, true, cancelable, detail || {});
+          el.dispatchEvent(evt);
+        }, this);
+      }
+    };
+
+    /* Start drawing on a canvas */
+    var start = function start() {
+      // For dimensions, clearCanvas etc.,
+      // we only care about the first element.
+      var canvas = elements[0];
+
+      if (canvas.getContext) {
+        ngx = Math.floor(canvas.width / g);
+        ngy = Math.floor(canvas.height / g);
+      } else {
+        var rect = canvas.getBoundingClientRect();
+        ngx = Math.floor(rect.width / g);
+        ngy = Math.floor(rect.height / g);
+      }
+
+      // Sending a wordcloudstart event which cause the previous loop to stop.
+      // Do nothing if the event is canceled.
+      if (!sendEvent('wordcloudstart', true)) {
+        return;
+      }
+
+      // Determine the center of the word cloud
+      center = (settings.origin) ?
+        [settings.origin[0]/g, settings.origin[1]/g] :
+        [ngx / 2, ngy / 2];
+
+      // Maxium radius to look for space
+      maxRadius = Math.floor(Math.sqrt(ngx * ngx + ngy * ngy));
+
+      /* Clear the canvas only if the clearCanvas is set,
+         if not, update the grid to the current canvas state */
+      grid = [];
+
+      var gx, gy, i;
+      if (!canvas.getContext || settings.clearCanvas) {
+        elements.forEach(function(el) {
+          if (el.getContext) {
+            var ctx = el.getContext('2d');
+            ctx.fillStyle = settings.backgroundColor;
+            ctx.clearRect(0, 0, ngx * (g + 1), ngy * (g + 1));
+            ctx.fillRect(0, 0, ngx * (g + 1), ngy * (g + 1));
+          } else {
+            el.textContent = '';
+            el.style.backgroundColor = settings.backgroundColor;
+          }
+        });
+
+        /* fill the grid with empty state */
+        gx = ngx;
+        while (gx--) {
+          grid[gx] = [];
+          gy = ngy;
+          while (gy--) {
+            grid[gx][gy] = true;
+          }
+        }
+      } else {
+        /* Determine bgPixel by creating
+           another canvas and fill the specified background color. */
+        var bctx = document.createElement('canvas').getContext('2d');
+
+        bctx.fillStyle = settings.backgroundColor;
+        bctx.fillRect(0, 0, 1, 1);
+        var bgPixel = bctx.getImageData(0, 0, 1, 1).data;
+
+        /* Read back the pixels of the canvas we got to tell which part of the
+           canvas is empty.
+           (no clearCanvas only works with a canvas, not divs) */
+        var imageData =
+          canvas.getContext('2d').getImageData(0, 0, ngx * g, ngy * g).data;
+
+        gx = ngx;
+        var x, y;
+        while (gx--) {
+          grid[gx] = [];
+          gy = ngy;
+          while (gy--) {
+            y = g;
+            singleGridLoop: while (y--) {
+              x = g;
+              while (x--) {
+                i = 4;
+                while (i--) {
+                  if (imageData[((gy * g + y) * ngx * g +
+                                 (gx * g + x)) * 4 + i] !== bgPixel[i]) {
+                    grid[gx][gy] = false;
+                    break singleGridLoop;
+                  }
+                }
+              }
+            }
+            if (grid[gx][gy] !== false) {
+              grid[gx][gy] = true;
+            }
+          }
+        }
+
+        imageData = bctx = bgPixel = undefined;
+      }
+
+      // fill the infoGrid with empty state if we need it
+      if (settings.hover || settings.click) {
+
+        interactive = true;
+
+        /* fill the grid with empty state */
+        gx = ngx + 1;
+        while (gx--) {
+          infoGrid[gx] = [];
+        }
+
+        if (settings.hover) {
+          canvas.addEventListener('mousemove', wordcloudhover);
+        }
+
+        if (settings.click) {
+          canvas.addEventListener('click', wordcloudclick);
+          canvas.addEventListener('touchstart', wordcloudclick);
+          canvas.addEventListener('touchend', function (e) {
+            e.preventDefault();
+          });
+          canvas.style.webkitTapHighlightColor = 'rgba(0, 0, 0, 0)';
+        }
+
+        canvas.addEventListener('wordcloudstart', function stopInteraction() {
+          canvas.removeEventListener('wordcloudstart', stopInteraction);
+
+          canvas.removeEventListener('mousemove', wordcloudhover);
+          canvas.removeEventListener('click', wordcloudclick);
+          hovered = undefined;
+        });
+      }
+
+      i = 0;
+      var loopingFunction, stoppingFunction;
+      if (settings.wait !== 0) {
+        loopingFunction = window.setTimeout;
+        stoppingFunction = window.clearTimeout;
+      } else {
+        loopingFunction = window.setImmediate;
+        stoppingFunction = window.clearImmediate;
+      }
+
+      var addEventListener = function addEventListener(type, listener) {
+        elements.forEach(function(el) {
+          el.addEventListener(type, listener);
+        }, this);
+      };
+
+      var removeEventListener = function removeEventListener(type, listener) {
+        elements.forEach(function(el) {
+          el.removeEventListener(type, listener);
+        }, this);
+      };
+
+      var anotherWordCloudStart = function anotherWordCloudStart() {
+        removeEventListener('wordcloudstart', anotherWordCloudStart);
+        stoppingFunction(timer);
+      };
+
+      addEventListener('wordcloudstart', anotherWordCloudStart);
+
+      var timer = loopingFunction(function loop() {
+        if (i >= settings.list.length) {
+          stoppingFunction(timer);
+          sendEvent('wordcloudstop', false);
+          removeEventListener('wordcloudstart', anotherWordCloudStart);
+
+          return;
+        }
+        escapeTime = (new Date()).getTime();
+        var drawn = putWord(settings.list[i]);
+        var canceled = !sendEvent('wordclouddrawn', true, {
+          item: settings.list[i], drawn: drawn });
+        if (exceedTime() || canceled) {
+          stoppingFunction(timer);
+          settings.abort();
+          sendEvent('wordcloudabort', false);
+          sendEvent('wordcloudstop', false);
+          removeEventListener('wordcloudstart', anotherWordCloudStart);
+          return;
+        }
+        i++;
+        timer = loopingFunction(loop, settings.wait);
+      }, settings.wait);
+    };
+
+    // All set, start the drawing
+    start();
+  };
+
+  WordCloud.isSupported = isSupported;
+  WordCloud.minFontSize = minFontSize;
+
+  // Expose the library as an AMD module
+  if (typeof define === 'function' && define.amd) {
+    define('wordcloud', [], function() { return WordCloud; });
+  } else if (typeof module !== 'undefined' && module.exports) {
+    module.exports = WordCloud;
+  } else {
+    global.WordCloud = WordCloud;
+  }
+
+})(this); //jshint ignore:line
+</script>
+<script>// create element
+function newlabel(el){
+  var newDiv = document.createElement("div");
+  var newSpan = document.createElement("span");
+  newDiv.id = 'wcLabel';
+  newSpan.id = "wcSpan";
+  el.appendChild(newDiv);
+  document.getElementById("wcLabel").appendChild(newSpan);
+}
+
+// hover function
+function cv_handleHover(item, dimension, evt) {
+  var el = document.getElementById("wcLabel");
+  if (!item) {
+    el.setAttribute('hidden', true);
+
+    return;
+  }
+
+  el.removeAttribute('hidden');
+  // console.log(evt.srcElement.offsetLeft);
+
+  el.style.left = dimension.x + evt.srcElement.offsetLeft + 'px';
+  el.style.top = dimension.y + evt.srcElement.offsetTop + 'px';
+  el.style.width = dimension.w + 'px';
+  el.style.height = dimension.h + 'px';
+
+  this.hoverDimension = dimension;
+
+  document.getElementById("wcSpan").setAttribute(
+    'data-l10n-args', JSON.stringify({ word: item[0], count: item[1] }));
+  document.getElementById("wcSpan").innerHTML =item[0]+":" + item[1];
+
+}
+
+function updateCanvasMask(maskCanvas) {
+    var ctx = maskCanvas.getContext('2d');
+    var imageData = ctx.getImageData(
+        0, 0, maskCanvas.width, maskCanvas.height);
+    var newImageData = ctx.createImageData(imageData);
+
+    var toneSum = 0;
+    var toneCnt = 0;
+    for (var i = 0; i < imageData.data.length; i += 4) {
+        var alpha = imageData.data[i + 3];
+        if (alpha > 128) {
+            var tone = imageData.data[i]
+                + imageData.data[i + 1]
+                + imageData.data[i + 2];
+            toneSum += tone;
+            ++toneCnt;
+        }
+    }
+    var threshold = toneSum / toneCnt;
+
+    for (var i = 0; i < imageData.data.length; i += 4) {
+        var tone = imageData.data[i]
+            + imageData.data[i + 1]
+            + imageData.data[i + 2];
+        var alpha = imageData.data[i + 3];
+
+        if (alpha < 128 || tone > threshold) {
+            // Area not to draw
+            newImageData.data[i] = 0;
+            newImageData.data[i + 1] = 0;
+            newImageData.data[i + 2] = 0;
+            newImageData.data[i + 3] = 0;
+        }
+        else {
+            // Area to draw
+            // The color must be same with backgroundColor
+            newImageData.data[i] = 255;
+            newImageData.data[i + 1] = 255;
+            newImageData.data[i + 2] = 255;
+            newImageData.data[i + 3] = 255;
+        }
+    }
+
+    ctx.putImageData(newImageData, 0, 0);
+    console.log(maskCanvas.toDataURL());
+}
+
+
+
+//mask function
+function maskInit(el,x){
+  console.log(1)
+  str = x.figBase64;
+  //console.log(str)
+  var newImg = new Image();
+  newImg.src = str;
+  newImg.style.position = 'absolute';
+  newImg.style.left = 0;
+  // console.log(el.clientHeight);
+  newImg.width = el.clientWidth;
+  newImg.height = el.clientHeight;
+  // maskCanvas = init(el, x, newImg);
+  vvalue = 128
+
+  ctx = el.firstChild.getContext('2d');
+
+                ctx.drawImage(newImg, 0, 0, canvas.width, canvas.height);
+                updateCanvasMask(ctx);
+
+
+
+
+
+            WordCloud(el.firstChild, { list: listData,
+                  fontFamily: x.fontFamily,
+                  fontWeight: x.fontWeight,
+                  color: x.color,
+                  minSize: x.minSize,
+                  weightFactor: x.weightFactor,
+                  backgroundColor: x.backgroundColor,
+                  gridSize: x.gridSize,
+                  minRotation: x.minRotation,
+                  maxRotation: x.maxRotation,
+                  shuffle: x.shuffle,
+                  shape: x.shape,
+                  rotateRatio: x.rotateRatio,
+                  ellipticity: x.ellipticity,
+                  clearCanvas: false,
+                  drawMask: true,
+                  hover: x.hover || cv_handleHover,
+                  abortThreshold: 3000
+                  });
+}
+
+</script>
+<script>HTMLWidgets.widget({
+
+  name: 'wordcloud2',
+
+  type: 'output',
+
+  initialize: function(el, width, height) {
+    var newCanvas = document.createElement("canvas");
+    newCanvas.height = height;
+    newCanvas.width = width;
+    newCanvas.id = "canvas";
+
+    el.appendChild(newCanvas);
+    newlabel(el);
+    return(el.firstChild);
+  },
+  renderValue: function(el, x, instance) {
+  // parse gexf data
+        listData=[];
+        for(var i=0; i<x.word.length; i++){
+          listData.push([x.word[i], x.freq[i]]);
+        }
+     if(x.figBase64){
+
+        maskInit(el,x);
+        console.log(3)
+
+      }else{
+        WordCloud(el.firstChild, { list: listData,
+                        fontFamily: x.fontFamily,
+                        fontWeight: x.fontWeight,
+                        color: x.color,
+                        minSize: x.minSize,
+                        weightFactor: x.weightFactor,
+                        backgroundColor: x.backgroundColor,
+                        gridSize: x.gridSize,
+                        minRotation: x.minRotation,
+                        maxRotation: x.maxRotation,
+                        shuffle: x.shuffle,
+                        shape: x.shape,
+                        rotateRatio: x.rotateRatio,
+                        ellipticity: x.ellipticity,
+                        drawMask: x.drawMask,
+                        maskColor: x.maskColor,
+                        maskGapWidth: x.maskGapWidth,
+                        hover: x.hover || cv_handleHover
+                        });
+      }
+    },
+      resize: function(el, width, height) {
+      }
+
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">2. Summarizing Codes</h1>
+
+
+
+<p>Using our same mock dataset, we can generate a summary of our codes
+using the <code>create_code_summary()</code> function. This function
+does several nifty things:</p>
+<ul>
+<li>Summarizes code counts and the proportion of transcripts/media
+objects they come</li>
+<li>Allows you to set a min count or proportion for the summary
+output</li>
+<li>Optionally plots the counts, proportions or both</li>
+<li>Optionally allows you to use code labels instead of variable names
+(using the codebook generated by <code>clean_data()</code>!)</li>
+</ul>
+<p>If you knitted the <em>Cleaning, Merging, and Exploring Qualitative
+Data</em> vignette just before this one, you already have
+<code>recoded$data_recode</code> and
+<code>recoded$codebook_recode</code> in your environment. The chunk
+below recreates them so this article is self-contained—feel free to skip
+it when reusing objects from the prior tutorial.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(DedooseR)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(tibble)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="co"># Mock excerpts that mimic a Dedoose export ----------------------------------</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>code_order <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>  <span class="st">&quot;Motor Skills&quot;</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="st">&quot;Social Skills&quot;</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  <span class="st">&quot;Self-expression&quot;</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>  <span class="st">&quot;Emotional Regulation&quot;</span>,</span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  <span class="st">&quot;Emotion Identification&quot;</span>,</span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="st">&quot;Inhibitory Control&quot;</span>,</span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  <span class="st">&quot;Internalizing Behavior&quot;</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>  <span class="st">&quot;Externalizing Behavior&quot;</span>,</span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>  <span class="st">&quot;Academic Skills&quot;</span>,</span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>  <span class="st">&quot;Self-esteem&quot;</span>,</span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a>  <span class="st">&quot;Growth Mindset&quot;</span></span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a>)</span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a>code_weights <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a>  <span class="st">&quot;Motor Skills&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a>  <span class="st">&quot;Social Skills&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a>  <span class="st">&quot;Self-expression&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a>  <span class="st">&quot;Emotional Regulation&quot;</span> <span class="ot">=</span> <span class="dv">2</span>,</span>
+<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a>  <span class="st">&quot;Emotion Identification&quot;</span> <span class="ot">=</span> <span class="dv">2</span>,</span>
+<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a>  <span class="st">&quot;Inhibitory Control&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a>  <span class="st">&quot;Internalizing Behavior&quot;</span> <span class="ot">=</span> <span class="dv">2</span>,</span>
+<span id="cb1-27"><a href="#cb1-27" tabindex="-1"></a>  <span class="st">&quot;Externalizing Behavior&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-28"><a href="#cb1-28" tabindex="-1"></a>  <span class="st">&quot;Academic Skills&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-29"><a href="#cb1-29" tabindex="-1"></a>  <span class="st">&quot;Self-esteem&quot;</span> <span class="ot">=</span> <span class="dv">1</span>,</span>
+<span id="cb1-30"><a href="#cb1-30" tabindex="-1"></a>  <span class="st">&quot;Growth Mindset&quot;</span> <span class="ot">=</span> <span class="dv">1</span></span>
+<span id="cb1-31"><a href="#cb1-31" tabindex="-1"></a>)</span>
+<span id="cb1-32"><a href="#cb1-32" tabindex="-1"></a></span>
+<span id="cb1-33"><a href="#cb1-33" tabindex="-1"></a>code_assignments <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb1-34"><a href="#cb1-34" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Motor Skills&quot;</span>, <span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-35"><a href="#cb1-35" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-36"><a href="#cb1-36" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-37"><a href="#cb1-37" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-38"><a href="#cb1-38" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-39"><a href="#cb1-39" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Motor Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-40"><a href="#cb1-40" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-41"><a href="#cb1-41" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Motor Skills&quot;</span>, <span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-42"><a href="#cb1-42" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-43"><a href="#cb1-43" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-44"><a href="#cb1-44" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-45"><a href="#cb1-45" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-46"><a href="#cb1-46" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Motor Skills&quot;</span>, <span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-47"><a href="#cb1-47" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-48"><a href="#cb1-48" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-49"><a href="#cb1-49" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Motor Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-50"><a href="#cb1-50" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-51"><a href="#cb1-51" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Externalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>),</span>
+<span id="cb1-52"><a href="#cb1-52" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Self-expression&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>),</span>
+<span id="cb1-53"><a href="#cb1-53" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Social Skills&quot;</span>, <span class="st">&quot;Emotional Regulation&quot;</span>, <span class="st">&quot;Emotion Identification&quot;</span>, <span class="st">&quot;Inhibitory Control&quot;</span>, <span class="st">&quot;Internalizing Behavior&quot;</span>, <span class="st">&quot;Academic Skills&quot;</span>, <span class="st">&quot;Self-esteem&quot;</span>, <span class="st">&quot;Growth Mindset&quot;</span>)</span>
+<span id="cb1-54"><a href="#cb1-54" tabindex="-1"></a>)</span>
+<span id="cb1-55"><a href="#cb1-55" tabindex="-1"></a></span>
+<span id="cb1-56"><a href="#cb1-56" tabindex="-1"></a>demo_excerpts <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb1-57"><a href="#cb1-57" tabindex="-1"></a>  <span class="st">`</span><span class="at">Media Title</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-58"><a href="#cb1-58" tabindex="-1"></a>    <span class="st">&quot;Interview: Opening Circle&quot;</span>,</span>
+<span id="cb1-59"><a href="#cb1-59" tabindex="-1"></a>    <span class="st">&quot;Focus Group: Rhythm Relay&quot;</span>,</span>
+<span id="cb1-60"><a href="#cb1-60" tabindex="-1"></a>    <span class="st">&quot;Interview: Alumni Showcase&quot;</span>,</span>
+<span id="cb1-61"><a href="#cb1-61" tabindex="-1"></a>    <span class="st">&quot;Classroom Observation: Lyric Lab&quot;</span>,</span>
+<span id="cb1-62"><a href="#cb1-62" tabindex="-1"></a>    <span class="st">&quot;Journal Club: Campfire Reflections&quot;</span>,</span>
+<span id="cb1-63"><a href="#cb1-63" tabindex="-1"></a>    <span class="st">&quot;Parent Interview: Practice Night&quot;</span>,</span>
+<span id="cb1-64"><a href="#cb1-64" tabindex="-1"></a>    <span class="st">&quot;Coach Debrief: Studio Session&quot;</span>,</span>
+<span id="cb1-65"><a href="#cb1-65" tabindex="-1"></a>    <span class="st">&quot;Interview: Teen Beat Makers&quot;</span>,</span>
+<span id="cb1-66"><a href="#cb1-66" tabindex="-1"></a>    <span class="st">&quot;Workshop: Beat Mapping&quot;</span>,</span>
+<span id="cb1-67"><a href="#cb1-67" tabindex="-1"></a>    <span class="st">&quot;Focus Group: Mentor Circle&quot;</span>,</span>
+<span id="cb1-68"><a href="#cb1-68" tabindex="-1"></a>    <span class="st">&quot;Observation: Homework Jam&quot;</span>,</span>
+<span id="cb1-69"><a href="#cb1-69" tabindex="-1"></a>    <span class="st">&quot;Interview: Closing Showcase&quot;</span>,</span>
+<span id="cb1-70"><a href="#cb1-70" tabindex="-1"></a>    <span class="st">&quot;Survey Comment: Quiet Camper&quot;</span>,</span>
+<span id="cb1-71"><a href="#cb1-71" tabindex="-1"></a>    <span class="st">&quot;Survey Comment: Confident Soloist&quot;</span>,</span>
+<span id="cb1-72"><a href="#cb1-72" tabindex="-1"></a>    <span class="st">&quot;Interview: Leadership Huddle&quot;</span>,</span>
+<span id="cb1-73"><a href="#cb1-73" tabindex="-1"></a>    <span class="st">&quot;Observation: Peer Pairing&quot;</span>,</span>
+<span id="cb1-74"><a href="#cb1-74" tabindex="-1"></a>    <span class="st">&quot;Focus Group: Reflection Rounds&quot;</span>,</span>
+<span id="cb1-75"><a href="#cb1-75" tabindex="-1"></a>    <span class="st">&quot;Interview: New Camper&quot;</span>,</span>
+<span id="cb1-76"><a href="#cb1-76" tabindex="-1"></a>    <span class="st">&quot;Observation: Goal Setting&quot;</span>,</span>
+<span id="cb1-77"><a href="#cb1-77" tabindex="-1"></a>    <span class="st">&quot;Workshop: Improvisation Lab&quot;</span></span>
+<span id="cb1-78"><a href="#cb1-78" tabindex="-1"></a>  ),</span>
+<span id="cb1-79"><a href="#cb1-79" tabindex="-1"></a>  <span class="st">`</span><span class="at">Excerpt Range</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-80"><a href="#cb1-80" tabindex="-1"></a>    <span class="st">&quot;Excerpt 12-56&quot;</span>,</span>
+<span id="cb1-81"><a href="#cb1-81" tabindex="-1"></a>    <span class="st">&quot;Excerpt 04-38&quot;</span>,</span>
+<span id="cb1-82"><a href="#cb1-82" tabindex="-1"></a>    <span class="st">&quot;Excerpt 77-112&quot;</span>,</span>
+<span id="cb1-83"><a href="#cb1-83" tabindex="-1"></a>    <span class="st">&quot;Excerpt 15-42&quot;</span>,</span>
+<span id="cb1-84"><a href="#cb1-84" tabindex="-1"></a>    <span class="st">&quot;Excerpt 33-80&quot;</span>,</span>
+<span id="cb1-85"><a href="#cb1-85" tabindex="-1"></a>    <span class="st">&quot;Excerpt 08-29&quot;</span>,</span>
+<span id="cb1-86"><a href="#cb1-86" tabindex="-1"></a>    <span class="st">&quot;Excerpt 21-48&quot;</span>,</span>
+<span id="cb1-87"><a href="#cb1-87" tabindex="-1"></a>    <span class="st">&quot;Excerpt 44-78&quot;</span>,</span>
+<span id="cb1-88"><a href="#cb1-88" tabindex="-1"></a>    <span class="st">&quot;Excerpt 63-97&quot;</span>,</span>
+<span id="cb1-89"><a href="#cb1-89" tabindex="-1"></a>    <span class="st">&quot;Excerpt 10-35&quot;</span>,</span>
+<span id="cb1-90"><a href="#cb1-90" tabindex="-1"></a>    <span class="st">&quot;Excerpt 52-85&quot;</span>,</span>
+<span id="cb1-91"><a href="#cb1-91" tabindex="-1"></a>    <span class="st">&quot;Excerpt 18-41&quot;</span>,</span>
+<span id="cb1-92"><a href="#cb1-92" tabindex="-1"></a>    <span class="st">&quot;Excerpt 71-103&quot;</span>,</span>
+<span id="cb1-93"><a href="#cb1-93" tabindex="-1"></a>    <span class="st">&quot;Excerpt 26-50&quot;</span>,</span>
+<span id="cb1-94"><a href="#cb1-94" tabindex="-1"></a>    <span class="st">&quot;Excerpt 39-72&quot;</span>,</span>
+<span id="cb1-95"><a href="#cb1-95" tabindex="-1"></a>    <span class="st">&quot;Excerpt 14-36&quot;</span>,</span>
+<span id="cb1-96"><a href="#cb1-96" tabindex="-1"></a>    <span class="st">&quot;Excerpt 58-90&quot;</span>,</span>
+<span id="cb1-97"><a href="#cb1-97" tabindex="-1"></a>    <span class="st">&quot;Excerpt 23-47&quot;</span>,</span>
+<span id="cb1-98"><a href="#cb1-98" tabindex="-1"></a>    <span class="st">&quot;Excerpt 66-101&quot;</span>,</span>
+<span id="cb1-99"><a href="#cb1-99" tabindex="-1"></a>    <span class="st">&quot;Excerpt 30-63&quot;</span></span>
+<span id="cb1-100"><a href="#cb1-100" tabindex="-1"></a>  ),</span>
+<span id="cb1-101"><a href="#cb1-101" tabindex="-1"></a>  <span class="st">`</span><span class="at">Excerpt Creator</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-102"><a href="#cb1-102" tabindex="-1"></a>    <span class="st">&quot;Aliyah&quot;</span>,</span>
+<span id="cb1-103"><a href="#cb1-103" tabindex="-1"></a>    <span class="st">&quot;Rohan&quot;</span>,</span>
+<span id="cb1-104"><a href="#cb1-104" tabindex="-1"></a>    <span class="st">&quot;Aliyah&quot;</span>,</span>
+<span id="cb1-105"><a href="#cb1-105" tabindex="-1"></a>    <span class="st">&quot;Lina&quot;</span>,</span>
+<span id="cb1-106"><a href="#cb1-106" tabindex="-1"></a>    <span class="st">&quot;Mateo&quot;</span>,</span>
+<span id="cb1-107"><a href="#cb1-107" tabindex="-1"></a>    <span class="st">&quot;Priya&quot;</span>,</span>
+<span id="cb1-108"><a href="#cb1-108" tabindex="-1"></a>    <span class="st">&quot;Lina&quot;</span>,</span>
+<span id="cb1-109"><a href="#cb1-109" tabindex="-1"></a>    <span class="st">&quot;Rohan&quot;</span>,</span>
+<span id="cb1-110"><a href="#cb1-110" tabindex="-1"></a>    <span class="st">&quot;Aliyah&quot;</span>,</span>
+<span id="cb1-111"><a href="#cb1-111" tabindex="-1"></a>    <span class="st">&quot;Mateo&quot;</span>,</span>
+<span id="cb1-112"><a href="#cb1-112" tabindex="-1"></a>    <span class="st">&quot;Priya&quot;</span>,</span>
+<span id="cb1-113"><a href="#cb1-113" tabindex="-1"></a>    <span class="st">&quot;Jordan&quot;</span>,</span>
+<span id="cb1-114"><a href="#cb1-114" tabindex="-1"></a>    <span class="st">&quot;Aliyah&quot;</span>,</span>
+<span id="cb1-115"><a href="#cb1-115" tabindex="-1"></a>    <span class="st">&quot;Rohan&quot;</span>,</span>
+<span id="cb1-116"><a href="#cb1-116" tabindex="-1"></a>    <span class="st">&quot;Jordan&quot;</span>,</span>
+<span id="cb1-117"><a href="#cb1-117" tabindex="-1"></a>    <span class="st">&quot;Priya&quot;</span>,</span>
+<span id="cb1-118"><a href="#cb1-118" tabindex="-1"></a>    <span class="st">&quot;Lina&quot;</span>,</span>
+<span id="cb1-119"><a href="#cb1-119" tabindex="-1"></a>    <span class="st">&quot;Mateo&quot;</span>,</span>
+<span id="cb1-120"><a href="#cb1-120" tabindex="-1"></a>    <span class="st">&quot;Jordan&quot;</span>,</span>
+<span id="cb1-121"><a href="#cb1-121" tabindex="-1"></a>    <span class="st">&quot;Priya&quot;</span></span>
+<span id="cb1-122"><a href="#cb1-122" tabindex="-1"></a>  ),</span>
+<span id="cb1-123"><a href="#cb1-123" tabindex="-1"></a>  <span class="st">`</span><span class="at">Excerpt Date</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">as.Date</span>(<span class="fu">c</span>(</span>
+<span id="cb1-124"><a href="#cb1-124" tabindex="-1"></a>    <span class="st">&quot;2023-06-10&quot;</span>,</span>
+<span id="cb1-125"><a href="#cb1-125" tabindex="-1"></a>    <span class="st">&quot;2023-07-18&quot;</span>,</span>
+<span id="cb1-126"><a href="#cb1-126" tabindex="-1"></a>    <span class="st">&quot;2024-01-08&quot;</span>,</span>
+<span id="cb1-127"><a href="#cb1-127" tabindex="-1"></a>    <span class="st">&quot;2023-07-24&quot;</span>,</span>
+<span id="cb1-128"><a href="#cb1-128" tabindex="-1"></a>    <span class="st">&quot;2023-08-05&quot;</span>,</span>
+<span id="cb1-129"><a href="#cb1-129" tabindex="-1"></a>    <span class="st">&quot;2023-08-12&quot;</span>,</span>
+<span id="cb1-130"><a href="#cb1-130" tabindex="-1"></a>    <span class="st">&quot;2023-08-19&quot;</span>,</span>
+<span id="cb1-131"><a href="#cb1-131" tabindex="-1"></a>    <span class="st">&quot;2023-08-26&quot;</span>,</span>
+<span id="cb1-132"><a href="#cb1-132" tabindex="-1"></a>    <span class="st">&quot;2023-09-02&quot;</span>,</span>
+<span id="cb1-133"><a href="#cb1-133" tabindex="-1"></a>    <span class="st">&quot;2023-09-09&quot;</span>,</span>
+<span id="cb1-134"><a href="#cb1-134" tabindex="-1"></a>    <span class="st">&quot;2023-09-16&quot;</span>,</span>
+<span id="cb1-135"><a href="#cb1-135" tabindex="-1"></a>    <span class="st">&quot;2023-09-23&quot;</span>,</span>
+<span id="cb1-136"><a href="#cb1-136" tabindex="-1"></a>    <span class="st">&quot;2023-09-30&quot;</span>,</span>
+<span id="cb1-137"><a href="#cb1-137" tabindex="-1"></a>    <span class="st">&quot;2023-10-07&quot;</span>,</span>
+<span id="cb1-138"><a href="#cb1-138" tabindex="-1"></a>    <span class="st">&quot;2023-10-14&quot;</span>,</span>
+<span id="cb1-139"><a href="#cb1-139" tabindex="-1"></a>    <span class="st">&quot;2023-10-21&quot;</span>,</span>
+<span id="cb1-140"><a href="#cb1-140" tabindex="-1"></a>    <span class="st">&quot;2023-10-28&quot;</span>,</span>
+<span id="cb1-141"><a href="#cb1-141" tabindex="-1"></a>    <span class="st">&quot;2023-11-04&quot;</span>,</span>
+<span id="cb1-142"><a href="#cb1-142" tabindex="-1"></a>    <span class="st">&quot;2023-11-11&quot;</span>,</span>
+<span id="cb1-143"><a href="#cb1-143" tabindex="-1"></a>    <span class="st">&quot;2023-11-18&quot;</span></span>
+<span id="cb1-144"><a href="#cb1-144" tabindex="-1"></a>  )),</span>
+<span id="cb1-145"><a href="#cb1-145" tabindex="-1"></a>  <span class="st">`</span><span class="at">Excerpt Copy</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-146"><a href="#cb1-146" tabindex="-1"></a>    <span class="st">&quot;Keeping the djembe rhythm steady made my hands stronger, and pairing up for call-and-response helped the nervous kids giggle and join in. We counted the measures together like a quick math warmup, and they kept testing new patterns until they could hear their confidence rise.&quot;</span>,</span>
+<span id="cb1-147"><a href="#cb1-147" tabindex="-1"></a>    <span class="st">&quot;During the rhythm relay, we practiced breathing between verses so the kids could wait for their cue instead of jumping in early. Mapping the rhymes to eight-count phrases let them chart syllables like a fractions lesson, and when one camper shouted over the group we paused to name the frustration, reset, and talk about how mistakes fuel the next take.&quot;</span>,</span>
+<span id="cb1-148"><a href="#cb1-148" tabindex="-1"></a>    <span class="st">&quot;When I get mad now, I write a hook about it first. It helps me spot the feeling, note the anxious thoughts that used to stay bottled up, and decide whether I want to shout it or sing it soft. Drafting verses in my notebook also keeps my reading teacher happy because I&#39;m practicing structure while I hype myself up.&quot;</span>,</span>
+<span id="cb1-149"><a href="#cb1-149" tabindex="-1"></a>    <span class="st">&quot;In lyric lab the trio revised their chorus, taking turns so nobody rushed the mic while they jotted rhyme schemes on the whiteboard. Naming which lines sounded brave versus nervous let them cheer each other on, and the rewrites doubled as a grammar check that made them proud to keep refining.&quot;</span>,</span>
+<span id="cb1-150"><a href="#cb1-150" tabindex="-1"></a>    <span class="st">&quot;During the campfire reflection, one camper admitted that she sometimes shuts down when we practice sad songs. Now, we check in during practice to spot evidence for those feelings and share coping plans when needed&quot;</span>,</span>
+<span id="cb1-151"><a href="#cb1-151" tabindex="-1"></a>    <span class="st">&quot;On practice night we tapped the rim pattern slowly so the shy drummer could breathe through the butterflies and wait for the downbeat before attacking the snare. They tracked tempos in a spreadsheet for homework, proving to themselves that patient repetitions improve control even when anxiety creeps in mid-song.&quot;</span>,</span>
+<span id="cb1-152"><a href="#cb1-152" tabindex="-1"></a>    <span class="st">&quot;During the studio session debrief, the counselors noted how Tasha&#39;s freestyles shifted from loud interruptions to collaborative echoes once we rehearsed conversation stems. She marked the beats she wanted to emphasize on her lyric worksheet, and bragged that the script gave her confidence without shutting down her big energy.&quot;</span>,</span>
+<span id="cb1-153"><a href="#cb1-153" tabindex="-1"></a>    <span class="st">&quot;The teen beat makers synced their keyboard riffs with the drum pad, counting rests together so each person held back until the loop called for them. Charting the chord inversions on staff paper turned into a mini theory lesson, and the crew loved seeing how breathing through the tricky hand switch built real confidence.&quot;</span>,</span>
+<span id="cb1-154"><a href="#cb1-154" tabindex="-1"></a>    <span class="st">&quot;Aliyah&#39;s notebook shows mood colors beside every verse, and she journals how the sadness feels in her chest before choosing whether to rap or sing the line. She keeps a checklist of revision strategies from literacy class, reminding herself to pause, name the feeling, and try another take until the lyric matches her intention.&quot;</span>,</span>
+<span id="cb1-155"><a href="#cb1-155" tabindex="-1"></a>    <span class="st">&quot;In mentor circle today the group mapped conflict scripts, role-playing the kid who shuts down and the kid who pops off. They located sentence starters from our reading packet to practice calm responses, and sharing wins boosted the quieter campers&#39; confidence.&quot;</span>,</span>
+<span id="cb1-156"><a href="#cb1-156" tabindex="-1"></a>    <span class="st">&quot;During homework jam we slowed spoken word drafts, pausing at commas to note the emotions driving each line. Writing margin notes about the worry behind certain phrases helped them see how breathing before the final stanza keeps the story clear while they revise.&quot;</span>,</span>
+<span id="cb1-157"><a href="#cb1-157" tabindex="-1"></a>    <span class="st">&quot;At the closing showcase interview, Jordan described how the ensemble now checks in with thumbs before feedback so anxious singers feel seen. They referenced the critique rubric like a reading comprehension guide, and noticing their own growth made them stand taller on stage.&quot;</span>,</span>
+<span id="cb1-158"><a href="#cb1-158" tabindex="-1"></a>    <span class="st">&quot;While recording harmonies Aliyah plotted fingerings on a tablature grid and waited for the metronome click before sliding into the chorus. Tracking the takes in her practice journal showed how deliberate pacing builds confidence and keeps her chasing new techniques.&quot;</span>,</span>
+<span id="cb1-159"><a href="#cb1-159" tabindex="-1"></a>    <span class="st">&quot;Rohan noted that the lunchtime cypher got loud when Jace joked through the tension, so we paused to label the frustration and mark triggers on the behavior chart. Translating that moment into a reflective paragraph later helped Jace feel proud of naming the shift before it exploded again.&quot;</span>,</span>
+<span id="cb1-160"><a href="#cb1-160" tabindex="-1"></a>    <span class="st">&quot;In leadership huddle the mentors graphed how their small-group questions improved week to week, even when nerves made them rush. Studying discussion transcripts for evidence of follow-up prompts showed them that practicing new openings pays off.&quot;</span>,</span>
+<span id="cb1-161"><a href="#cb1-161" tabindex="-1"></a>    <span class="st">&quot;During peer pairing, Malik clenched up before solos, so we rehearsed counting four silent beats before striking the bell tree. Logging each attempt on a progress chart proved to him that steady breathing and restraint can tame the worry he carries in.&quot;</span>,</span>
+<span id="cb1-162"><a href="#cb1-162" tabindex="-1"></a>    <span class="st">&quot;Reflection rounds had artists reread their zine entries, underline words tied to fear or hope, and then rewrite one stanza to show the shift. Sharing those drafts aloud left them buzzing about how revising with evidence from the text made their voices feel stronger.&quot;</span>,</span>
+<span id="cb1-163"><a href="#cb1-163" tabindex="-1"></a>    <span class="st">&quot;The new camper interview highlighted how staff coached a quick-to-shout drummer to tap the rim twice before speaking, giving peers room to weigh in. Charting discussion norms on the whiteboard doubled as a literacy task and she beamed about channeling her volume into support.&quot;</span>,</span>
+<span id="cb1-164"><a href="#cb1-164" tabindex="-1"></a>    <span class="st">&quot;Goal setting sessions have teens draft personal learning targets, then annotate lyrics to show where they pushed past stage fright. Keeping that evidence log convinces them their writing muscles grow with each revision.&quot;</span>,</span>
+<span id="cb1-165"><a href="#cb1-165" tabindex="-1"></a>    <span class="st">&quot;In improvisation lab the facilitator had everyone breathe twice, name the dominant feeling, and raise a hand before adding to the groove. They cited vocabulary from literacy night to explain their choices, and each success at pausing built their belief that they can stretch the next idea even further.&quot;</span></span>
+<span id="cb1-166"><a href="#cb1-166" tabindex="-1"></a>  ),</span>
+<span id="cb1-167"><a href="#cb1-167" tabindex="-1"></a>  <span class="st">`</span><span class="at">Resource Creator</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb1-168"><a href="#cb1-168" tabindex="-1"></a>    <span class="st">&quot;Camp Director&quot;</span>,</span>
+<span id="cb1-169"><a href="#cb1-169" tabindex="-1"></a>    <span class="st">&quot;Evaluation Lead&quot;</span>,</span>
+<span id="cb1-170"><a href="#cb1-170" tabindex="-1"></a>    <span class="st">&quot;Alumni Coordinator&quot;</span>,</span>
+<span id="cb1-171"><a href="#cb1-171" tabindex="-1"></a>    <span class="st">&quot;Program Researcher&quot;</span>,</span>
+<span id="cb1-172"><a href="#cb1-172" tabindex="-1"></a>    <span class="st">&quot;School Liaison&quot;</span>,</span>
+<span id="cb1-173"><a href="#cb1-173" tabindex="-1"></a>    <span class="st">&quot;Behavior Specialist&quot;</span>,</span>
+<span id="cb1-174"><a href="#cb1-174" tabindex="-1"></a>    <span class="st">&quot;Camp Director&quot;</span>,</span>
+<span id="cb1-175"><a href="#cb1-175" tabindex="-1"></a>    <span class="st">&quot;Program Researcher&quot;</span>,</span>
+<span id="cb1-176"><a href="#cb1-176" tabindex="-1"></a>    <span class="st">&quot;Counselor Team Lead&quot;</span>,</span>
+<span id="cb1-177"><a href="#cb1-177" tabindex="-1"></a>    <span class="st">&quot;Behavior Specialist&quot;</span>,</span>
+<span id="cb1-178"><a href="#cb1-178" tabindex="-1"></a>    <span class="st">&quot;Evaluation Lead&quot;</span>,</span>
+<span id="cb1-179"><a href="#cb1-179" tabindex="-1"></a>    <span class="st">&quot;School Liaison&quot;</span>,</span>
+<span id="cb1-180"><a href="#cb1-180" tabindex="-1"></a>    <span class="st">&quot;Camp Director&quot;</span>,</span>
+<span id="cb1-181"><a href="#cb1-181" tabindex="-1"></a>    <span class="st">&quot;Behavior Specialist&quot;</span>,</span>
+<span id="cb1-182"><a href="#cb1-182" tabindex="-1"></a>    <span class="st">&quot;Program Researcher&quot;</span>,</span>
+<span id="cb1-183"><a href="#cb1-183" tabindex="-1"></a>    <span class="st">&quot;Counselor Team Lead&quot;</span>,</span>
+<span id="cb1-184"><a href="#cb1-184" tabindex="-1"></a>    <span class="st">&quot;Evaluation Lead&quot;</span>,</span>
+<span id="cb1-185"><a href="#cb1-185" tabindex="-1"></a>    <span class="st">&quot;Camp Director&quot;</span>,</span>
+<span id="cb1-186"><a href="#cb1-186" tabindex="-1"></a>    <span class="st">&quot;Program Researcher&quot;</span>,</span>
+<span id="cb1-187"><a href="#cb1-187" tabindex="-1"></a>    <span class="st">&quot;Counselor Team Lead&quot;</span></span>
+<span id="cb1-188"><a href="#cb1-188" tabindex="-1"></a>  ),</span>
+<span id="cb1-189"><a href="#cb1-189" tabindex="-1"></a>  <span class="st">`</span><span class="at">Resource Date</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">as.Date</span>(<span class="fu">c</span>(</span>
+<span id="cb1-190"><a href="#cb1-190" tabindex="-1"></a>    <span class="st">&quot;2023-06-01&quot;</span>,</span>
+<span id="cb1-191"><a href="#cb1-191" tabindex="-1"></a>    <span class="st">&quot;2023-07-12&quot;</span>,</span>
+<span id="cb1-192"><a href="#cb1-192" tabindex="-1"></a>    <span class="st">&quot;2023-12-20&quot;</span>,</span>
+<span id="cb1-193"><a href="#cb1-193" tabindex="-1"></a>    <span class="st">&quot;2023-07-20&quot;</span>,</span>
+<span id="cb1-194"><a href="#cb1-194" tabindex="-1"></a>    <span class="st">&quot;2023-08-02&quot;</span>,</span>
+<span id="cb1-195"><a href="#cb1-195" tabindex="-1"></a>    <span class="st">&quot;2023-08-09&quot;</span>,</span>
+<span id="cb1-196"><a href="#cb1-196" tabindex="-1"></a>    <span class="st">&quot;2023-08-16&quot;</span>,</span>
+<span id="cb1-197"><a href="#cb1-197" tabindex="-1"></a>    <span class="st">&quot;2023-08-23&quot;</span>,</span>
+<span id="cb1-198"><a href="#cb1-198" tabindex="-1"></a>    <span class="st">&quot;2023-08-30&quot;</span>,</span>
+<span id="cb1-199"><a href="#cb1-199" tabindex="-1"></a>    <span class="st">&quot;2023-09-06&quot;</span>,</span>
+<span id="cb1-200"><a href="#cb1-200" tabindex="-1"></a>    <span class="st">&quot;2023-09-13&quot;</span>,</span>
+<span id="cb1-201"><a href="#cb1-201" tabindex="-1"></a>    <span class="st">&quot;2023-09-20&quot;</span>,</span>
+<span id="cb1-202"><a href="#cb1-202" tabindex="-1"></a>    <span class="st">&quot;2023-09-27&quot;</span>,</span>
+<span id="cb1-203"><a href="#cb1-203" tabindex="-1"></a>    <span class="st">&quot;2023-10-04&quot;</span>,</span>
+<span id="cb1-204"><a href="#cb1-204" tabindex="-1"></a>    <span class="st">&quot;2023-10-11&quot;</span>,</span>
+<span id="cb1-205"><a href="#cb1-205" tabindex="-1"></a>    <span class="st">&quot;2023-10-18&quot;</span>,</span>
+<span id="cb1-206"><a href="#cb1-206" tabindex="-1"></a>    <span class="st">&quot;2023-10-25&quot;</span>,</span>
+<span id="cb1-207"><a href="#cb1-207" tabindex="-1"></a>    <span class="st">&quot;2023-11-01&quot;</span>,</span>
+<span id="cb1-208"><a href="#cb1-208" tabindex="-1"></a>    <span class="st">&quot;2023-11-08&quot;</span>,</span>
+<span id="cb1-209"><a href="#cb1-209" tabindex="-1"></a>    <span class="st">&quot;2023-11-15&quot;</span></span>
+<span id="cb1-210"><a href="#cb1-210" tabindex="-1"></a>  ))</span>
+<span id="cb1-211"><a href="#cb1-211" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb1-212"><a href="#cb1-212" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
+<span id="cb1-213"><a href="#cb1-213" tabindex="-1"></a>    <span class="at">range_stub =</span> <span class="fu">sub</span>(<span class="st">&quot;Excerpt &quot;</span>, <span class="st">&quot;&quot;</span>, <span class="st">`</span><span class="at">Excerpt Range</span><span class="st">`</span>),</span>
+<span id="cb1-214"><a href="#cb1-214" tabindex="-1"></a>    <span class="at">code_details =</span> purrr<span class="sc">::</span><span class="fu">map2</span>(</span>
+<span id="cb1-215"><a href="#cb1-215" tabindex="-1"></a>      code_assignments,</span>
+<span id="cb1-216"><a href="#cb1-216" tabindex="-1"></a>      range_stub,</span>
+<span id="cb1-217"><a href="#cb1-217" tabindex="-1"></a>      <span class="sc">~</span> <span class="fu">tibble</span>(</span>
+<span id="cb1-218"><a href="#cb1-218" tabindex="-1"></a>        <span class="at">code =</span> .x,</span>
+<span id="cb1-219"><a href="#cb1-219" tabindex="-1"></a>        <span class="at">range =</span> .y,</span>
+<span id="cb1-220"><a href="#cb1-220" tabindex="-1"></a>        <span class="at">weight =</span> <span class="fu">unname</span>(code_weights[.x])</span>
+<span id="cb1-221"><a href="#cb1-221" tabindex="-1"></a>      )</span>
+<span id="cb1-222"><a href="#cb1-222" tabindex="-1"></a>    ),</span>
+<span id="cb1-223"><a href="#cb1-223" tabindex="-1"></a>    <span class="st">`</span><span class="at">Codes Applied Combined</span><span class="st">`</span> <span class="ot">=</span> purrr<span class="sc">::</span><span class="fu">map_chr</span>(</span>
+<span id="cb1-224"><a href="#cb1-224" tabindex="-1"></a>      code_details,</span>
+<span id="cb1-225"><a href="#cb1-225" tabindex="-1"></a>      <span class="sc">~</span> <span class="fu">paste</span>(<span class="fu">intersect</span>(code_order, .x<span class="sc">$</span>code), <span class="at">collapse =</span> <span class="st">&quot;; &quot;</span>)</span>
+<span id="cb1-226"><a href="#cb1-226" tabindex="-1"></a>    )</span>
+<span id="cb1-227"><a href="#cb1-227" tabindex="-1"></a>  )</span>
+<span id="cb1-228"><a href="#cb1-228" tabindex="-1"></a></span>
+<span id="cb1-229"><a href="#cb1-229" tabindex="-1"></a><span class="cf">for</span> (code <span class="cf">in</span> code_order) {</span>
+<span id="cb1-230"><a href="#cb1-230" tabindex="-1"></a>  applied_col <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;Code: &quot;</span>, code, <span class="st">&quot; Applied&quot;</span>)</span>
+<span id="cb1-231"><a href="#cb1-231" tabindex="-1"></a>  range_col <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;Code: &quot;</span>, code, <span class="st">&quot; Range&quot;</span>)</span>
+<span id="cb1-232"><a href="#cb1-232" tabindex="-1"></a>  weight_col <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;Code: &quot;</span>, code, <span class="st">&quot; Weight&quot;</span>)</span>
+<span id="cb1-233"><a href="#cb1-233" tabindex="-1"></a></span>
+<span id="cb1-234"><a href="#cb1-234" tabindex="-1"></a>  demo_excerpts[[applied_col]] <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map_chr</span>(</span>
+<span id="cb1-235"><a href="#cb1-235" tabindex="-1"></a>    demo_excerpts<span class="sc">$</span>code_details,</span>
+<span id="cb1-236"><a href="#cb1-236" tabindex="-1"></a>    <span class="sc">~</span> <span class="cf">if</span> (code <span class="sc">%in%</span> .x<span class="sc">$</span>code) <span class="st">&quot;True&quot;</span> <span class="cf">else</span> <span class="st">&quot;False&quot;</span></span>
+<span id="cb1-237"><a href="#cb1-237" tabindex="-1"></a>  )</span>
+<span id="cb1-238"><a href="#cb1-238" tabindex="-1"></a></span>
+<span id="cb1-239"><a href="#cb1-239" tabindex="-1"></a>  demo_excerpts[[range_col]] <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map_chr</span>(</span>
+<span id="cb1-240"><a href="#cb1-240" tabindex="-1"></a>    demo_excerpts<span class="sc">$</span>code_details,</span>
+<span id="cb1-241"><a href="#cb1-241" tabindex="-1"></a>    <span class="sc">~</span> {</span>
+<span id="cb1-242"><a href="#cb1-242" tabindex="-1"></a>      rng <span class="ot">&lt;-</span> .x<span class="sc">$</span>range[.x<span class="sc">$</span>code <span class="sc">==</span> code]</span>
+<span id="cb1-243"><a href="#cb1-243" tabindex="-1"></a>      <span class="cf">if</span> (<span class="fu">length</span>(rng) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_character_</span> <span class="cf">else</span> rng</span>
+<span id="cb1-244"><a href="#cb1-244" tabindex="-1"></a>    }</span>
+<span id="cb1-245"><a href="#cb1-245" tabindex="-1"></a>  )</span>
+<span id="cb1-246"><a href="#cb1-246" tabindex="-1"></a></span>
+<span id="cb1-247"><a href="#cb1-247" tabindex="-1"></a>  demo_excerpts[[weight_col]] <span class="ot">&lt;-</span> purrr<span class="sc">::</span><span class="fu">map_dbl</span>(</span>
+<span id="cb1-248"><a href="#cb1-248" tabindex="-1"></a>    demo_excerpts<span class="sc">$</span>code_details,</span>
+<span id="cb1-249"><a href="#cb1-249" tabindex="-1"></a>    <span class="sc">~</span> {</span>
+<span id="cb1-250"><a href="#cb1-250" tabindex="-1"></a>      wt <span class="ot">&lt;-</span> .x<span class="sc">$</span>weight[.x<span class="sc">$</span>code <span class="sc">==</span> code]</span>
+<span id="cb1-251"><a href="#cb1-251" tabindex="-1"></a>      <span class="cf">if</span> (<span class="fu">length</span>(wt) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> wt</span>
+<span id="cb1-252"><a href="#cb1-252" tabindex="-1"></a>    }</span>
+<span id="cb1-253"><a href="#cb1-253" tabindex="-1"></a>  )</span>
+<span id="cb1-254"><a href="#cb1-254" tabindex="-1"></a>}</span>
+<span id="cb1-255"><a href="#cb1-255" tabindex="-1"></a></span>
+<span id="cb1-256"><a href="#cb1-256" tabindex="-1"></a>demo_excerpts <span class="ot">&lt;-</span> demo_excerpts <span class="sc">|&gt;</span></span>
+<span id="cb1-257"><a href="#cb1-257" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
+<span id="cb1-258"><a href="#cb1-258" tabindex="-1"></a>    <span class="sc">-</span>range_stub,</span>
+<span id="cb1-259"><a href="#cb1-259" tabindex="-1"></a>    <span class="sc">-</span>code_details</span>
+<span id="cb1-260"><a href="#cb1-260" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb1-261"><a href="#cb1-261" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">relocate</span>(<span class="st">`</span><span class="at">Codes Applied Combined</span><span class="st">`</span>, <span class="at">.after =</span> <span class="st">`</span><span class="at">Resource Date</span><span class="st">`</span>)</span>
+<span id="cb1-262"><a href="#cb1-262" tabindex="-1"></a></span>
+<span id="cb1-263"><a href="#cb1-263" tabindex="-1"></a><span class="co"># Define your preferred coders ----------------------------------</span></span>
+<span id="cb1-264"><a href="#cb1-264" tabindex="-1"></a>preferred_coders <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Aliyah&quot;</span>, <span class="st">&quot;Rohan&quot;</span>, <span class="st">&quot;Lina&quot;</span>, <span class="st">&quot;Mateo&quot;</span>, <span class="st">&quot;Priya&quot;</span>, <span class="st">&quot;Jordan&quot;</span>)</span>
+<span id="cb1-265"><a href="#cb1-265" tabindex="-1"></a></span>
+<span id="cb1-266"><a href="#cb1-266" tabindex="-1"></a><span class="co"># Clean the mock export ----------------------------------</span></span>
+<span id="cb1-267"><a href="#cb1-267" tabindex="-1"></a>cleaned <span class="ot">&lt;-</span> <span class="fu">clean_data</span>(</span>
+<span id="cb1-268"><a href="#cb1-268" tabindex="-1"></a>  <span class="at">excerpts =</span> demo_excerpts,</span>
+<span id="cb1-269"><a href="#cb1-269" tabindex="-1"></a>  <span class="at">preferred_coders =</span> preferred_coders,</span>
+<span id="cb1-270"><a href="#cb1-270" tabindex="-1"></a>  <span class="at">rename_vars =</span> <span class="fu">list</span>(<span class="at">resource_author =</span> <span class="st">&quot;resource_creator&quot;</span>),</span>
+<span id="cb1-271"><a href="#cb1-271" tabindex="-1"></a>  <span class="at">relabel_vars =</span> <span class="fu">list</span>(</span>
+<span id="cb1-272"><a href="#cb1-272" tabindex="-1"></a>    <span class="at">media_title =</span> <span class="st">&quot;Interview or focus group title&quot;</span>,</span>
+<span id="cb1-273"><a href="#cb1-273" tabindex="-1"></a>    <span class="at">resource_author =</span> <span class="st">&quot;Team member who uploaded to Dedoose&quot;</span></span>
+<span id="cb1-274"><a href="#cb1-274" tabindex="-1"></a>  )</span>
+<span id="cb1-275"><a href="#cb1-275" tabindex="-1"></a>)</span>
+<span id="cb1-276"><a href="#cb1-276" tabindex="-1"></a></span>
+<span id="cb1-277"><a href="#cb1-277" tabindex="-1"></a><span class="co"># Recode if needed ----------------------------------</span></span>
+<span id="cb1-278"><a href="#cb1-278" tabindex="-1"></a>recoded <span class="ot">&lt;-</span> <span class="fu">recode_themes</span>(</span>
+<span id="cb1-279"><a href="#cb1-279" tabindex="-1"></a>  <span class="at">data =</span> cleaned<span class="sc">$</span>data,</span>
+<span id="cb1-280"><a href="#cb1-280" tabindex="-1"></a>  <span class="at">recodes =</span> <span class="fu">list</span>(</span>
+<span id="cb1-281"><a href="#cb1-281" tabindex="-1"></a>    <span class="at">c_emotional_growth =</span> <span class="fu">c</span>(</span>
+<span id="cb1-282"><a href="#cb1-282" tabindex="-1"></a>      <span class="st">&quot;c_emotional_regulation&quot;</span>,</span>
+<span id="cb1-283"><a href="#cb1-283" tabindex="-1"></a>      <span class="st">&quot;c_emotion_identification&quot;</span></span>
+<span id="cb1-284"><a href="#cb1-284" tabindex="-1"></a>    )</span>
+<span id="cb1-285"><a href="#cb1-285" tabindex="-1"></a>  ),</span>
+<span id="cb1-286"><a href="#cb1-286" tabindex="-1"></a>  <span class="at">relabel_vars =</span> <span class="fu">list</span>(</span>
+<span id="cb1-287"><a href="#cb1-287" tabindex="-1"></a>    <span class="at">c_emotional_growth =</span> <span class="st">&quot;emotional growth: identification and/or regulation&quot;</span></span>
+<span id="cb1-288"><a href="#cb1-288" tabindex="-1"></a>  )</span>
+<span id="cb1-289"><a href="#cb1-289" tabindex="-1"></a>)</span>
+<span id="cb1-290"><a href="#cb1-290" tabindex="-1"></a></span>
+<span id="cb1-291"><a href="#cb1-291" tabindex="-1"></a><span class="co"># Extract the cleaned and recoded data and codebook ----------------------------------</span></span>
+<span id="cb1-292"><a href="#cb1-292" tabindex="-1"></a>data <span class="ot">&lt;-</span> recoded<span class="sc">$</span>data_recode</span>
+<span id="cb1-293"><a href="#cb1-293" tabindex="-1"></a>codebook <span class="ot">&lt;-</span> recoded<span class="sc">$</span>codebook_recode</span></code></pre></div>
+<p>With the dataset prepared, <code>create_code_summary()</code> will
+tally how often each code appears, how many unique media titles it
+spans, and—when <code>plot = TRUE</code>—produce a visual snapshot. We
+will lean on code labels to keep the output readable.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Create code summary ----------------------------------</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>summary_results <span class="ot">&lt;-</span> <span class="fu">create_code_summary</span>(</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="at">excerpts =</span> data,</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">table_min_count =</span> <span class="dv">1</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="at">plot =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="at">plot_metric =</span> <span class="st">&quot;both&quot;</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="at">use_labels =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  <span class="at">codebook =</span> codebook</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 4</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt;    code                                   count n_media_titles prop_media_titles</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt;    &lt;chr&gt;                                  &lt;int&gt;          &lt;int&gt;             &lt;dbl&gt;</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="co">#&gt;  1 academic skills                           20             20              1   </span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="co">#&gt;  2 emotional growth: identification and/…    15             15              0.75</span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="co">#&gt;  3 externalizing behavior                     6              6              0.3 </span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co">#&gt;  4 growth mindset                            12             12              0.6 </span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="co">#&gt;  5 inhibitory control                        10             10              0.5 </span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="co">#&gt;  6 internalizing behavior                    12             12              0.6 </span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co">#&gt;  7 motor skills                               5              5              0.25</span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="co">#&gt;  8 self-esteem                               15             15              0.75</span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="co">#&gt;  9 self-expression                            9              9              0.45</span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co">#&gt; 10 social skills                             10             10              0.5</span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a><span class="co"># Peek at the summary table ----------------------------------</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>summary_results<span class="sc">$</span>table</span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 4</span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a><span class="co">#&gt;    code                                   count n_media_titles prop_media_titles</span></span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a><span class="co">#&gt;    &lt;chr&gt;                                  &lt;int&gt;          &lt;int&gt;             &lt;dbl&gt;</span></span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a><span class="co">#&gt;  1 academic skills                           20             20              1   </span></span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a><span class="co">#&gt;  2 emotional growth: identification and/…    15             15              0.75</span></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="co">#&gt;  3 externalizing behavior                     6              6              0.3 </span></span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a><span class="co">#&gt;  4 growth mindset                            12             12              0.6 </span></span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a><span class="co">#&gt;  5 inhibitory control                        10             10              0.5 </span></span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="co">#&gt;  6 internalizing behavior                    12             12              0.6 </span></span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a><span class="co">#&gt;  7 motor skills                               5              5              0.25</span></span>
+<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a><span class="co">#&gt;  8 self-esteem                               15             15              0.75</span></span>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a><span class="co">#&gt;  9 self-expression                            9              9              0.45</span></span>
+<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a><span class="co">#&gt; 10 social skills                             10             10              0.5</span></span></code></pre></div>
+<p>The helper invisibly returns both the table and the plot when
+<code>plot = TRUE</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>summary_results<span class="sc">$</span>plot</span></code></pre></div>
+<p><img role="img" src="data:image/png;base64,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6hACQiAVASmgVFiUKASEQH0gIAVUHyirDiEgBFIRkAJKhUWJQkAI1AcCUkD1gbLqEAJCIBUBKaBUWJQoBIRAfSCglVHrA2XVsVEiwOqdixcvLrSd1Ry23npr16lTJ/sUTmxAO//1X/9l3Ms0icX/IP9iJdKGkscff9zNnTvXtWjRwl1zzTU1mvHUU09pVYwaiOhACMQQQAFdf/317qWXXrLP888/737yk5+4Qw891PXt2zeWc8PYnTdvnjv++OMLjXn44YcdaQ0lq1atMtIxlOJOO+20XjNomyyg9WBRghD4JwKtWrVyCxYs+GeC30MJDRgwwA0ePNgdffTRNc415MGaNWvcH//4x0ITHnvsscJ+Q+zQnq997WtmicXXAou3RT6gOBraFwI5EOjdu7djlQcY/ZApU6a4+fPnu4svvtgso1/84hfub3/7m7vjjjvc9773PXfiiSe6iRMnOtZGD/LjH//Yhiakd+/e3V122WXurbfeCqdtu2TJEtevXz/XtWtXd8EFF7hf/epXhfMMDa+77jqHlUP5MAw++uij7j/+4z/cwIEDHWRft956q7v//vsL13zyySfu0ksvdccdd5w788wz3dNPP104R9u47r333nMjR4503/nOd9ywYcPcb37zm0Ke5E6xPqL8UNTkQVEvXbo0ebkdSwGlwqJEIZCNAA+uX9LceI3JhfIZNGiQW7lypfviiy/M73LWWWfZg9ymTRsjYkdZnHDCCXYd11BG//793cyZMx0KDWvh2GOPLayb9eSTT7qjjjrK/f73v7dhDApn3333NQXB9W+//babNGmSu+KKKxxrbn31q191WGtbbrmlO+SQQ9xmm21myyAvWrSI7KaQDjzwQBuSobD+7//+z/Xo0cOxXjuCorj77rtdt27dHIqKPFh+KKssKdbHXXbZxfChHbQHAvpUYW14iRAQAusj4K2SaLvttotGjx5tH46POeaYyD9UkfcDRf/7v/9rF3nFErVt27Zw/Morr0T+YYtmz55dKDSkeaespXnHcOQX6ou85VHI41cNjYYOHWrHnrQ9OuOMMwrn2CGtT58+lnbPPfdYHd7PUsjj/VXRfvvtVzj2SiTy1ocde8sn8sOh6C9/+UvhPGm04U9/+lP05z//2cobNWpU4fyzzz5rab/+9a8LaWEn9KdYH6dOnRp5pRguWW/rLaxIFlCqWlai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8+fPt5Urq1F2njJDH9esWWPT6vNcE/KwdjdT8ZPCPBEfqGhT+pPn8h6HdpGfWCXmlCDQQBBu8PTTT9fpN8kq3yppwK807Og/ZGIbouS9fwPeWfdMtfq20SqgVatW2cxOgEEBEftSDbn11lttUlc1yi5VZryPPqraLV++vNQlNc4z3T9NAfmIZnfjjTfWWgExUY2p/kFYczwoINY3h0aCOmr7mxQrP9TZUNs07Hw0uM1obqg2Fas3z/1LzFggK8u6Z4rVUZdz9aKA0giO4CZB4Cxh1ibCjQcXSprAFhducm6CQLBE2q677uouvPDCGpehlD755JMaaaFO0pPn4Dah7jiRU42LUw5CHbQbjhckEDfByUJ6kJA3HIMJ/UBYZzxczzFlMI0+3kfSEfhjPvzww8K1pJGfT1Igs2LafRAIpegf/+JJKfYbJfEiLxww9Akh5mn77bc3vhn6TQgC9SZ/E8qh/XFJwz2r/HAdeIFBHN+AO9v333+/xrlwXdiyFvu7775bw2qhLNpGewLuIT/bLOwg59phhx1sRjP5irUteU+Qn3q5h7k36TfC75NFVhbKp508N+Slz8GC4XrKC8RjHMcF/h64gcL9wnWhv1yTvGe4Nv7scVwKK/LklarHgmURHPXv39/C+4kAfvvtt12/fv3MbCeGBXDuueceR2zKokWL3J133mn/MOQbMmSIBeMxhOBHmzlzptECEOcybdo0u6kgdwo/6O677+6uu+46K4s69913X1M+PAzHHnus85wtdsOOGjXKbiTaw49y1113GalTFpDjx493K1eudLSX2BwC9vgn4ToeDtpKXE7fvn1dWntGjBjhBg8ebMGFnifGPfDAAzYsopzzzz/feV4YOw59pB0vv/yywxLi5uPGu+2229xWW23lbrnlFouSpi9xgU8YYiqsFawRcCDuiOvjUuw3SsOLIRb1QydBmURbT5kyxfCn7AkTJrhu3bo5giz5TXggLr74YsOVMADikorhnlU+kdr8o4MDmH/22WdmyfEbQ5iFUkT5gAlKht+C3ycu3DfTp093XMO/PZQVnivH6C4g7+JPgch0FBRxVB07diyKHVZpoKXIalvynoj/TrSB+wblQ1jG1KlTnecHKjzke+yxh90/3Bf8htdff721HUz588b6ou877bSTKX76yu/Cvd21a9dC11Ea3OPc94RoEPzKMUon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" /><!-- --></p>
+<div id="cook-up-a-word-cloud-with-wordcloud" class="section level2">
+<h2>2. Cook up a word cloud with <code>wordcloud()</code></h2>
+<p>Sometimes you want a sense of the vocabulary that surfaces within a
+code. <code>wordcloud()</code> filters the excerpts for the selected
+code, removes common stop words, and renders the result with
+<code>wordcloud2</code>. Because <code>wordcloud2</code> depends on HTML
+widgets, the chunk below only runs when the package is installed. You
+can also pass <code>custom_stopwords</code> to drop project-specific
+terms.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Word cloud for the emotional-growth composite code -------------------------</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">requireNamespace</span>(<span class="st">&quot;wordcloud2&quot;</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="fu">wordcloud</span>(</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>    <span class="at">data =</span> data,</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>    <span class="at">code =</span> <span class="st">&quot;c_emotional_growth&quot;</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>    <span class="at">max_words =</span> <span class="dv">60</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>    <span class="at">custom_stopwords =</span> <span class="fu">c</span>(<span class="st">&quot;camp&quot;</span>, <span class="st">&quot;kids&quot;</span>, <span class="st">&quot;jace&quot;</span>)</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  )</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">&quot;Install the wordcloud2 package to render the word cloud.&quot;</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>}</span></code></pre></div>
+<div class="wordcloud2 html-widget html-fill-item" id="htmlwidget-4ac8dbdc82131e6e34dc" style="width:288px;height:288px;"></div>
+<script type="application/json" data-for="htmlwidget-4ac8dbdc82131e6e34dc">{"x":{"word":["breathing","practice","camper","chart","feel","feeling","literacy","reading","anxious","breathe","built","charting","check","confidence","counting","doubled","drafts","drummer","evidence","frustration","hand","helped","homework","interview","kid","lab","lesson","line","lyric","naming","night","note","notebook","paused","pausing","phrases","proud","reflection","rim","sharing","shift","shout","shuts","sing","spot","staff","stanza","verses","wait","whiteboard","worry","adding","admitted","aliyah's","aloud","anxiety","artists","attacking","attempt","beamed"],"freq":[4,4,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1],"fontFamily":"Segoe UI","fontWeight":"bold","color":"random-dark","minSize":0,"weightFactor":45,"backgroundColor":"white","gridSize":0,"minRotation":-0.7853981633974483,"maxRotation":0.7853981633974483,"shuffle":true,"rotateRatio":0.4,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
